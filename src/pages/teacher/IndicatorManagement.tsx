@@ -13,7 +13,8 @@ import {
   X,
   SlidersHorizontal,
   Info,
-  ArrowLeft
+  ArrowLeft,
+  Copy
 } from 'lucide-react';
 
 const DEFAULT_SCALE: ScaleDescriptions = {
@@ -95,6 +96,28 @@ export const IndicatorManagement: React.FC<IndicatorManagementProps> = ({ onBack
     await DatabaseService.saveIndicator(item);
     setIsModalOpen(false);
     showNotice(editingIndicator ? 'Indikator berhasil diperbarui' : 'Indikator baru berhasil dibuat');
+  };
+
+  const handleDuplicateIndicator = async (ind: IndicatorItem) => {
+    const newInd: IndicatorItem = {
+      ...ind,
+      id: `ind-${Date.now()}`,
+      indikator: `${ind.indikator} (Salinan)`,
+      urutan: indicators.length + 1,
+      createdAt: new Date().toISOString()
+    };
+    await DatabaseService.saveIndicator(newInd);
+    showNotice(`Indikator berhasil disalin / diduplikat!`);
+  };
+
+  const handleCopyText = (ind: IndicatorItem) => {
+    const textToCopy = `[Indikator PJOK: ${ind.materi}]\n${ind.indikator}\nRubrik:\n1. ${ind.skala?.[1] || '-'}\n2. ${ind.skala?.[2] || '-'}\n3. ${ind.skala?.[3] || '-'}\n4. ${ind.skala?.[4] || '-'}`;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(textToCopy);
+      showNotice('Teks indikator & rubrik berhasil disalin ke clipboard');
+    } else {
+      showNotice('Teks siap disalin');
+    }
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -277,6 +300,14 @@ export const IndicatorManagement: React.FC<IndicatorManagementProps> = ({ onBack
 
               {/* Action buttons */}
               <div className="flex items-center gap-1.5 self-end md:self-center shrink-0">
+                <button
+                  onClick={() => handleDuplicateIndicator(ind)}
+                  className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  title="Duplikat / Salin Indikator ini ke daftar"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Salin</span>
+                </button>
                 <button
                   onClick={() => openEditModal(ind)}
                   className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"

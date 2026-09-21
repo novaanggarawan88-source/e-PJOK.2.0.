@@ -15,7 +15,8 @@ import {
   Clock,
   Settings,
   HelpCircle,
-  CheckSquare
+  CheckSquare,
+  Copy
 } from 'lucide-react';
 
 interface TaskManagementProps {
@@ -158,6 +159,18 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
     showNotice(editingTask ? 'Tugas penilaian berhasil diperbarui' : 'Tugas penilaian berhasil dibuat dan ditugaskan');
   };
 
+  const handleDuplicateTask = async (task: AssessmentTask) => {
+    const newTask: AssessmentTask = {
+      ...task,
+      id: `task-${Date.now()}`,
+      nama: `${task.nama} (Salinan)`,
+      status: 'draft',
+      createdAt: new Date().toISOString()
+    };
+    await DatabaseService.saveTask(newTask);
+    showNotice(`Tugas "${task.nama}" berhasil disalin sebagai Draft! Silakan sesuaikan kelas / batas waktu jika diperlukan.`);
+  };
+
   const handleDelete = async (id: string, name: string) => {
     if (window.confirm(`Hapus tugas penilaian "${name}"?`)) {
       await DatabaseService.deleteTask(id);
@@ -292,15 +305,23 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
               {/* Action buttons */}
               <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
                 <button
+                  onClick={() => handleDuplicateTask(task)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  title="Duplikat tugas ini beserta indikatornya untuk kelas atau pertemuan lain"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Salin Tugas</span>
+                </button>
+                <button
                   onClick={() => openEditModal(task)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                   <span>Edit Tugas</span>
                 </button>
                 <button
                   onClick={() => handleDelete(task.id, task.nama)}
-                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                   title="Hapus Tugas"
                 >
                   <Trash2 className="w-4 h-4" />
