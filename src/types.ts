@@ -57,7 +57,8 @@ export interface AssessmentTask {
   id: string;
   nama: string; // "Penilaian Antar Teman Passing Bola Basket"
   materi: string; // "Passing Bola Basket"
-  kelas: string; // "XI 7"
+  kelas: string; // "XI 7" or comma separated/primary label
+  targetKelas?: string[]; // Multiple assigned classes, e.g. ["X 1", "X 2"]
   tanggalMulai: string;
   batasWaktu: string;
   instruksi: string;

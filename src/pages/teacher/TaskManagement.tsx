@@ -16,7 +16,9 @@ import {
   Settings,
   HelpCircle,
   CheckSquare,
-  Copy
+  Copy,
+  Check,
+  School
 } from 'lucide-react';
 
 interface TaskManagementProps {
