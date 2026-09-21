@@ -12,7 +12,8 @@ import {
   XCircle,
   X,
   SlidersHorizontal,
-  Info
+  Info,
+  ArrowLeft
 } from 'lucide-react';
 
 const DEFAULT_SCALE: ScaleDescriptions = {
@@ -22,7 +23,11 @@ const DEFAULT_SCALE: ScaleDescriptions = {
   4: 'Sangat Baik'
 };
 
-export const IndicatorManagement: React.FC = () => {
+interface IndicatorManagementProps {
+  onBack?: () => void;
+}
+
+export const IndicatorManagement: React.FC<IndicatorManagementProps> = ({ onBack }) => {
   const [indicators, setIndicators] = useState<IndicatorItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndicator, setEditingIndicator] = useState<IndicatorItem | null>(null);
@@ -140,7 +145,16 @@ export const IndicatorManagement: React.FC = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 text-xs font-bold mb-1.5">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 mb-2 cursor-pointer transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Kembali ke Tugas Penilaian</span>
+            </button>
+          )}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 text-xs font-bold mb-1.5 ml-0 sm:ml-2">
             <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
             <span>Kewenangan Penuh Guru</span>
           </div>

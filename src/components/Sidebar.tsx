@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Users,
   School,
-  CheckSquare,
   FileSpreadsheet,
   Award,
   BarChart3,
@@ -36,6 +35,15 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+interface MenuGroup {
+  title: string;
+  items: {
+    id: TeacherMenu;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }[];
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({
   currentMenu,
   onSelectMenu,
@@ -44,19 +52,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { logout } = useAuth();
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'students', label: 'Data Murid', icon: Users },
-    { id: 'classes', label: 'Data Kelas', icon: School },
-    { id: 'indicators', label: 'Indikator Penilaian', icon: CheckSquare },
-    { id: 'tasks', label: 'Tugas Penilaian', icon: ClipboardList },
-    { id: 'materials', label: 'Materi Pembelajaran', icon: BookOpen },
-    { id: 'quizzes', label: 'Quis PJOK', icon: HelpCircle },
-    { id: 'results', label: 'Hasil Penilaian', icon: Award },
-    { id: 'recap', label: 'Rekap Nilai', icon: FileSpreadsheet },
-    { id: 'analytics', label: 'Analisis & Grafik', icon: BarChart3 },
-    { id: 'settings', label: 'Pengaturan & DB', icon: Settings }
-  ] as const;
+  const menuGroups: MenuGroup[] = [
+    {
+      title: 'MENU UTAMA',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }
+      ]
+    },
+    {
+      title: 'DATA',
+      items: [
+        { id: 'students', label: 'Data Murid', icon: Users },
+        { id: 'classes', label: 'Data Kelas', icon: School }
+      ]
+    },
+    {
+      title: 'PEMBELAJARAN & NILAI',
+      items: [
+        { id: 'materials', label: 'Materi Pembelajaran', icon: BookOpen },
+        { id: 'tasks', label: 'Tugas Penilaian', icon: ClipboardList },
+        { id: 'quizzes', label: 'Quis PJOK', icon: HelpCircle }
+      ]
+    },
+    {
+      title: 'REKAPAN',
+      items: [
+        { id: 'results', label: 'Hasil Penilaian', icon: Award },
+        { id: 'recap', label: 'Rekap Nilai', icon: FileSpreadsheet },
+        { id: 'analytics', label: 'Analisis & Grafik', icon: BarChart3 },
+        { id: 'settings', label: 'Pengaturan & DB', icon: Settings }
+      ]
+    }
+  ];
 
   const handleItemClick = (id: TeacherMenu) => {
     onSelectMenu(id);
@@ -87,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="p-4 flex flex-col h-full overflow-y-auto">
+        <div className="p-3.5 flex flex-col h-full overflow-y-auto">
           {/* Mobile header with close button */}
           <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100 dark:border-slate-800 lg:hidden">
             <span className="font-extrabold text-sm text-slate-800 dark:text-white font-heading">
@@ -101,29 +128,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* Navigation Links */}
-          <div className="space-y-1 py-1">
-            <p className="px-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-              Menu Utama
-            </p>
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentMenu === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleItemClick(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 dark:bg-emerald-600'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-400'}`} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
+          {/* Categorized Navigation Groups */}
+          <div className="space-y-4 py-1">
+            {menuGroups.map((group, groupIdx) => (
+              <div key={group.title} className="space-y-1">
+                <p className="px-3 text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">
+                  {group.title}
+                </p>
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = currentMenu === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleItemClick(item.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 dark:bg-emerald-600'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Icon
+                          className={`w-4 h-4 shrink-0 ${
+                            isActive ? 'text-white' : 'text-slate-400 dark:text-slate-400'
+                          }`}
+                        />
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {groupIdx < menuGroups.length - 1 && (
+                  <div className="pt-2 border-b border-slate-100 dark:border-slate-800/60" />
+                )}
+              </div>
+            ))}
           </div>
 
           {/* Bottom Section: Tombol Keluar di Paling Bawah */}
@@ -131,7 +171,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2.5 px-3 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/50 rounded-xl transition-all cursor-pointer shadow-xs"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/50 rounded-xl transition-all cursor-pointer shadow-xs"
             >
               <LogOut className="w-4 h-4" />
               <span>Keluar Akun</span>

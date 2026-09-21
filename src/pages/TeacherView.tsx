@@ -53,8 +53,12 @@ export const TeacherView: React.FC<TeacherViewProps> = ({
         )}
         {currentMenu === 'students' && <StudentManagement />}
         {currentMenu === 'classes' && <ClassManagement />}
-        {currentMenu === 'indicators' && <IndicatorManagement />}
-        {currentMenu === 'tasks' && <TaskManagement />}
+        {currentMenu === 'indicators' && (
+          <IndicatorManagement onBack={() => setCurrentMenu('tasks')} />
+        )}
+        {currentMenu === 'tasks' && (
+          <TaskManagement onNavigateIndicators={() => setCurrentMenu('indicators')} />
+        )}
         {currentMenu === 'materials' && <MaterialManagement />}
         {currentMenu === 'quizzes' && <QuizManagement />}
         {currentMenu === 'results' && (
