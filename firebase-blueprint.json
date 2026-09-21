@@ -1,0 +1,184 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Profil pengguna sistem baik Guru (Admin) maupun Murid PJOK.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "ID unik Firebase Auth atau sistem." },
+        "nama": { "type": "string", "description": "Nama lengkap pengguna." },
+        "email": { "type": "string", "description": "Alamat email pengguna." },
+        "role": { "type": "string", "enum": ["guru", "murid"], "description": "Peran hak akses pengguna." },
+        "kelas": { "type": "string", "description": "Nama kelas untuk murid (contoh: XI 7)." },
+        "nomorAbsen": { "type": "string", "description": "Nomor absen siswa di kelas." },
+        "nis": { "type": "string", "description": "Nomor Induk Siswa." },
+        "status": { "type": "string", "enum": ["aktif", "nonaktif"], "description": "Status keaktifan akun." },
+        "createdAt": { "type": "string", "description": "Waktu pembuatan akun." }
+      },
+      "required": ["uid", "nama", "email", "role", "status"]
+    },
+    "ClassItem": {
+      "title": "ClassItem",
+      "description": "Data rombongan belajar kelas PJOK.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik kelas." },
+        "nama": { "type": "string", "description": "Nama kelas (contoh: XI 7, X 1)." },
+        "tingkat": { "type": "string", "description": "Tingkat kelas (X, XI, XII)." },
+        "jurusan": { "type": "string", "description": "Jurusan / peminatan." },
+        "status": { "type": "string", "enum": ["aktif", "nonaktif"], "description": "Status aktif kelas." },
+        "createdAt": { "type": "string", "description": "Waktu pembuatan data kelas." }
+      },
+      "required": ["id", "nama", "tingkat", "status"]
+    },
+    "IndicatorItem": {
+      "title": "IndicatorItem",
+      "description": "Rubrik indikator gerakan jasmani dengan skala penilaian 1-4.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik indikator." },
+        "judulPenilaian": { "type": "string", "description": "Judul atau kelompok indikator." },
+        "materi": { "type": "string", "description": "Materi cabang olahraga/gerak." },
+        "indikator": { "type": "string", "description": "Deskripsi perilaku/teknik gerak yang dinilai." },
+        "urutan": { "type": "number", "description": "Nomor urut tampilan." },
+        "status": { "type": "string", "enum": ["aktif", "nonaktif"], "description": "Status keaktifan indikator." },
+        "createdBy": { "type": "string", "description": "Nama guru pembuat." },
+        "createdAt": { "type": "string", "description": "Waktu dibuat." }
+      },
+      "required": ["id", "materi", "indikator", "urutan", "status"]
+    },
+    "AssessmentTask": {
+      "title": "AssessmentTask",
+      "description": "Tugas penilaian antar teman yang dibuat dan diatur oleh guru.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik tugas." },
+        "nama": { "type": "string", "description": "Nama kegiatan tugas penilaian." },
+        "materi": { "type": "string", "description": "Materi teknik gerak PJOK." },
+        "kelas": { "type": "string", "description": "Target kelas yang mengerjakan tugas." },
+        "tanggalMulai": { "type": "string", "description": "Tanggal mulai tugas." },
+        "batasWaktu": { "type": "string", "description": "Tenggat waktu pengerjaan." },
+        "instruksi": { "type": "string", "description": "Instruksi dan arahan guru bagi murid." },
+        "indikatorIds": { "type": "array", "description": "Daftar ID indikator gerak yang dinilai." },
+        "jumlahTemanDinilai": { "type": "number", "description": "Target kuota teman yang harus dinilai." },
+        "bolehUploadVideo": { "type": "boolean", "description": "Izinkan lampiran video." },
+        "bolehUploadFoto": { "type": "boolean", "description": "Izinkan lampiran foto." },
+        "wajibBukti": { "type": "boolean", "description": "Apakah wajib melampirkan foto/video." },
+        "izinkanEdit": { "type": "boolean", "description": "Apakah murid boleh mengedit penilaian yang sudah dikirim." },
+        "status": { "type": "string", "enum": ["aktif", "draft", "selesai"], "description": "Status pengerjaan tugas." },
+        "createdAt": { "type": "string", "description": "Waktu pembuatan tugas." }
+      },
+      "required": ["id", "nama", "materi", "kelas", "status"]
+    },
+    "AssessmentRecord": {
+      "title": "AssessmentRecord",
+      "description": "Catatan hasil penilaian antar teman yang dikirimkan oleh murid.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik dokumen penilaian." },
+        "taskId": { "type": "string", "description": "ID tugas yang dinilai." },
+        "taskTitle": { "type": "string", "description": "Judul tugas." },
+        "assessorId": { "type": "string", "description": "UID murid yang menilai (penilai)." },
+        "assessorName": { "type": "string", "description": "Nama murid penilai." },
+        "assessorClass": { "type": "string", "description": "Kelas murid penilai." },
+        "targetId": { "type": "string", "description": "UID teman yang dinilai (target)." },
+        "targetName": { "type": "string", "description": "Nama teman yang dinilai." },
+        "targetClass": { "type": "string", "description": "Kelas teman yang dinilai." },
+        "scores": { "type": "array", "description": "Skor tiap indikator (skala 1-4)." },
+        "averageScore": { "type": "number", "description": "Nilai rata-rata skala 4." },
+        "finalScore100": { "type": "number", "description": "Konversi nilai skala 100." },
+        "feedback": { "type": "string", "description": "Catatan/masukan perbaikan gerak." },
+        "evidenceUrl": { "type": "string", "description": "Tautan bukti foto atau video." },
+        "evidenceType": { "type": "string", "enum": ["video", "foto", "none"], "description": "Jenis bukti yang diunggah." },
+        "createdAt": { "type": "string", "description": "Waktu pengiriman penilaian." },
+        "updatedAt": { "type": "string", "description": "Waktu perbaikan penilaian." }
+      },
+      "required": ["id", "taskId", "assessorId", "targetId", "scores", "averageScore", "finalScore100", "feedback"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Pengaturan identitas aplikasi (nama sekolah, logo, motto, dsb.).",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string" },
+        "schoolName": { "type": "string" },
+        "motto": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "logoIconPreset": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "MediaChunk": {
+      "title": "MediaChunk",
+      "description": "Pecahan data media video atau foto bukti gerakan siswa agar tersinkronisasi antar perangkat tanpa kendala ukuran dokumen Firestore.",
+      "type": "object",
+      "properties": {
+        "mediaId": { "type": "string", "description": "ID unik media bukti." },
+        "chunkIndex": { "type": "number", "description": "Indeks potongan file (mulai 0)." },
+        "totalChunks": { "type": "number", "description": "Jumlah total potongan file." },
+        "mimeType": { "type": "string", "description": "Tipe MIME media (video/mp4, image/jpeg, dsb.)." },
+        "data": { "type": "string", "description": "Konten potongan dalam format Base64." },
+        "createdAt": { "type": "string", "description": "Waktu unggah pecahan." }
+      },
+      "required": ["mediaId", "chunkIndex", "totalChunks", "mimeType", "data"]
+    },
+    "MaterialItem": {
+      "title": "MaterialItem",
+      "description": "Materi pembelajaran PJOK (video, modul, slide presentasi, dokumen) yang berisi tautan embed atau link pembelajaran beserta kontrol kunci akses.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik materi pembelajaran." },
+        "judul": { "type": "string", "description": "Judul materi pembelajaran PJOK." },
+        "materi": { "type": "string", "description": "Topik atau bab materi PJOK." },
+        "kategori": { "type": "string", "description": "Format materi (Video Pembelajaran, Slide / PPT, Modul / PDF, Artikel / Web)." },
+        "kelas": { "type": "string", "description": "Target kelas siswa (Semua Kelas atau kelas tertentu)." },
+        "linkUrl": { "type": "string", "description": "Tautan link materi pembelajaran." },
+        "status": { "type": "string", "enum": ["buka", "kunci"], "description": "Status kunci akses materi." },
+        "kodeKunci": { "type": "string", "description": "PIN atau kode kunci pengaman materi." },
+        "deskripsi": { "type": "string", "description": "Ringkasan isi materi." },
+        "instruksi": { "type": "string", "description": "Petunjuk belajar dari guru PJOK." },
+        "durasiEstimasi": { "type": "number", "description": "Estimasi waktu belajar dalam menit." },
+        "createdAt": { "type": "string", "description": "Waktu pembuatan materi." }
+      },
+      "required": ["id", "judul", "materi", "kategori", "kelas", "linkUrl", "status"]
+    }
+  },
+  "firestore": {
+    "/settings/{docId}": {
+      "schema": { "$ref": "#/entities/AppConfig" },
+      "description": "Pengaturan aplikasi global seperti nama sekolah, logo, dan identitas PJOK."
+    },
+    "/pengguna/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Koleksi data pengguna sistem (Guru dan Murid) yang menjadi rujukan peran ('guru' vs 'murid') dan hak akses."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Koleksi data pengguna sistem (Guru dan Murid)."
+    },
+    "/classes/{classId}": {
+      "schema": { "$ref": "#/entities/ClassItem" },
+      "description": "Koleksi data kelas pembelajaran PJOK."
+    },
+    "/indicators/{indicatorId}": {
+      "schema": { "$ref": "#/entities/IndicatorItem" },
+      "description": "Koleksi rubrik indikator gerak jasmani skala 1-4."
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/AssessmentTask" },
+      "description": "Koleksi tugas penilaian antar teman yang aktif maupun arsip."
+    },
+    "/assessments/{assessmentId}": {
+      "schema": { "$ref": "#/entities/AssessmentRecord" },
+      "description": "Koleksi catatan nilai evaluasi antar teman yang dikirimkan murid."
+    },
+    "/media_chunks/{chunkId}": {
+      "schema": { "$ref": "#/entities/MediaChunk" },
+      "description": "Penyimpanan pecahan video bukti gerakan murid yang dapat diputar oleh guru dan murid lain di berbagai perangkat."
+    },
+    "/materials/{materialId}": {
+      "schema": { "$ref": "#/entities/MaterialItem" },
+      "description": "Koleksi materi pembelajaran PJOK berupa tautan link dan kontrol akses guru-murid."
+    }
+  }
+}

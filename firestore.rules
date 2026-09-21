@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Pengaturan Aplikasi (nama sekolah, logo, slogan, dsb.)
+    match /settings/{docId} {
+      allow read, write: if true;
+    }
+
+    // Pengguna collection (primary users collection for guru & murid)
+    match /pengguna/{userId} {
+      allow read, write: if true;
+    }
+
+    // Users collection (backwards compatibility)
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Classes collection (sinkron antar HP & Laptop)
+    match /classes/{classId} {
+      allow read, write: if true;
+    }
+
+    // Rubric Indicators collection
+    match /indicators/{indicatorId} {
+      allow read, write: if true;
+    }
+
+    // Assessment Tasks collection
+    match /tasks/{taskId} {
+      allow read, write: if true;
+    }
+
+    // Peer Assessments collection
+    match /assessments/{assessmentId} {
+      allow read, write: if true;
+    }
+
+    // Media Chunks for videos and photos (sinkron antar HP murid dan laptop guru)
+    match /media_chunks/{chunkId} {
+      allow read, write: if true;
+    }
+
+    // Quizzes collection (Manajemen Kuis Link & Kunci Guru-Murid)
+    match /quizzes/{quizId} {
+      allow read, write: if true;
+    }
+
+    // Quiz Submissions collection (Daftar Siswa yang Mengerjakan Kuis)
+    match /quiz_submissions/{subId} {
+      allow read, write: if true;
+    }
+
+    // Materials collection (Materi Pembelajaran PJOK Link & Kunci)
+    match /materials/{matId} {
+      allow read, write: if true;
+    }
+
+    // Material Progress collection (Tracking Progres Belajar Siswa)
+    match /material_progress/{progId} {
+      allow read, write: if true;
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

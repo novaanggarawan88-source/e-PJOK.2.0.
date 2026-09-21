@@ -1,0 +1,11 @@
+{
+  "name": "e-PJOK",
+  "description": "Aplikasi e-PJOK: Pembelajaran interaktif, penilaian antar teman, modul materi, dan quis PJOK untuk guru dan siswa.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
