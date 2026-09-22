@@ -11,6 +11,7 @@ import { Analytics } from './teacher/Analytics';
 import { SettingsPage } from './teacher/SettingsPage';
 import { QuizManagement } from './teacher/QuizManagement';
 import { MaterialManagement } from './teacher/MaterialManagement';
+import { LearningTaskManagement } from './teacher/LearningTaskManagement';
 import { AssessmentRecord } from '../types';
 
 interface TeacherViewProps {
@@ -63,6 +64,7 @@ export const TeacherView: React.FC<TeacherViewProps> = ({
           <TaskManagement onNavigateIndicators={() => setCurrentMenu('indicators')} />
         )}
         {currentMenu === 'materials' && <MaterialManagement />}
+        {currentMenu === 'learning-tasks' && <LearningTaskManagement />}
         {currentMenu === 'quizzes' && <QuizManagement />}
         {currentMenu === 'results' && (
           <AssessmentResults

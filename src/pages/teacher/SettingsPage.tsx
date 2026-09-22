@@ -209,14 +209,14 @@ export const SettingsPage: React.FC = () => {
   const handleResetData = async () => {
     if (
       window.confirm(
-        'Apakah Anda yakin ingin mengatur ulang data aplikasi ke data bawaan Kurikulum PJOK Kelas XI 7 (Passing Bola Basket)? Semua data dummy akan diperbarui.'
+        'Apakah Anda yakin ingin mengatur ulang data aplikasi ke konfigurasi bersih? Data tugas, kuis, dan materi yang belum tersimpan akan dibersihkan.'
       )
     ) {
       setResetting(true);
       await DatabaseService.resetToSeedData();
       await loadData();
       setResetting(false);
-      showToast('Data aplikasi berhasil diatur ulang ke konfigurasi standar PJOK.');
+      showToast('Data aplikasi berhasil diatur ulang ke konfigurasi bersih.');
     }
   };
 
@@ -622,16 +622,16 @@ export const SettingsPage: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-sm font-heading">
-                  Reset Data ke Kurikulum PJOK Awal
+                  Reset & Bersihkan Data Aplikasi
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Muat ulang data sampel Kelas XI 7 materi Bola Basket
+                  Kembalikan konfigurasi aplikasi ke setelan awal yang bersih
                 </p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Jika Anda ingin membersihkan data uji coba dan memulihkan daftar siswa, 5 indikator passing bola basket, dan sampel penilaian awal, Anda dapat menekan tombol di bawah ini.
+              Jika Anda ingin mengatur ulang data aplikasi dan memastikan semua data tugas, asesmen, atau kuis sementara kembali bersih, Anda dapat menekan tombol di bawah ini.
             </p>
           </div>
 
@@ -642,7 +642,7 @@ export const SettingsPage: React.FC = () => {
               className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${resetting ? 'animate-spin' : ''}`} />
-              <span>{resetting ? 'Memulihkan Data...' : 'Reset ke Data Bawaan Kurikulum'}</span>
+              <span>{resetting ? 'Membersihkan Data...' : 'Reset ke Setelan Bersih'}</span>
             </button>
           </div>
         </div>

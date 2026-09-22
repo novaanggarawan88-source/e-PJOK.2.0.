@@ -141,6 +141,42 @@
         "createdAt": { "type": "string", "description": "Waktu pembuatan materi." }
       },
       "required": ["id", "judul", "materi", "kategori", "kelas", "linkUrl", "status"]
+    },
+    "LearningTaskItem": {
+      "title": "LearningTaskItem",
+      "description": "Tugas pembelajaran mandiri atau terstruktur siswa yang dikelola guru.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik tugas pembelajaran." },
+        "judul": { "type": "string", "description": "Judul tugas pembelajaran." },
+        "materi": { "type": "string", "description": "Topik atau bab PJOK." },
+        "kelas": { "type": "string", "description": "Target kelas siswa." },
+        "deskripsi": { "type": "string", "description": "Deskripsi atau soal tugas." },
+        "batasWaktu": { "type": "string", "description": "Batas waktu pengumpulan tugas." },
+        "status": { "type": "string", "enum": ["aktif", "draf", "selesai"], "description": "Status aktif atau draf tugas." },
+        "tipePengumpulan": { "type": "string", "description": "Metode pengerjaan (langsung / upload / keduanya)." },
+        "disableCopyPaste": { "type": "boolean", "description": "Apakah copy-paste dinonaktifkan untuk jawaban langsung." },
+        "createdAt": { "type": "string", "description": "Waktu pembuatan tugas." }
+      },
+      "required": ["id", "judul", "materi", "kelas", "status"]
+    },
+    "LearningTaskSubmission": {
+      "title": "LearningTaskSubmission",
+      "description": "Pengumpulan tugas pembelajaran oleh murid.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik pengumpulan tugas." },
+        "taskId": { "type": "string", "description": "ID tugas pembelajaran terkait." },
+        "studentId": { "type": "string", "description": "UID murid yang mengumpulkan." },
+        "studentName": { "type": "string", "description": "Nama murid." },
+        "studentClass": { "type": "string", "description": "Kelas murid." },
+        "catatanJawaban": { "type": "string", "description": "Jawaban langsung dari murid." },
+        "linkLampiran": { "type": "string", "description": "Tautan berkas pendukung." },
+        "submittedAt": { "type": "string", "description": "Waktu pengumpulan." },
+        "status": { "type": "string", "enum": ["terkirim", "dinilai"], "description": "Status pemeriksaan tugas." },
+        "nilai": { "type": "number", "description": "Nilai evaluasi guru (0-100)." }
+      },
+      "required": ["id", "taskId", "studentId", "studentName", "status", "submittedAt"]
     }
   },
   "firestore": {
@@ -179,6 +215,14 @@
     "/materials/{materialId}": {
       "schema": { "$ref": "#/entities/MaterialItem" },
       "description": "Koleksi materi pembelajaran PJOK berupa tautan link dan kontrol akses guru-murid."
+    },
+    "/learning_tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/LearningTaskItem" },
+      "description": "Koleksi tugas pembelajaran mandiri/terstruktur dengan status aktif atau draf dan mode anti copy-paste."
+    },
+    "/learning_submissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/LearningTaskSubmission" },
+      "description": "Koleksi hasil pengumpulan tugas pembelajaran siswa beserta penilaian guru."
     }
   }
 }

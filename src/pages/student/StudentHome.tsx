@@ -12,10 +12,10 @@ import {
   Award,
   Calendar,
   HeartHandshake,
-  HelpCircle,
   Unlock,
   Lock,
-  BookOpen
+  BookOpen,
+  CheckSquare
 } from 'lucide-react';
 
 interface StudentHomeProps {
@@ -106,6 +106,20 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
 
           <div className="mt-4 sm:mt-5 flex flex-wrap gap-2 sm:gap-2.5">
             <button
+              onClick={() => onNavigateTab('materials')}
+              className="px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm font-semibold backdrop-blur-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <BookOpen className="w-4 h-4 text-emerald-300" />
+              <span>Materi</span>
+            </button>
+            <button
+              onClick={() => onNavigateTab('learning-tasks')}
+              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-700/20 transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <CheckSquare className="w-4 h-4 text-white" />
+              <span>Tugas Pembelajaran</span>
+            </button>
+            <button
               onClick={() => onNavigateTab('tasks')}
               className="px-4 py-2.5 rounded-xl bg-white text-indigo-900 text-xs sm:text-sm font-bold shadow-md hover:bg-blue-50 transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
             >
@@ -116,15 +130,8 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
               onClick={() => onNavigateTab('quizzes')}
               className="px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-white text-xs sm:text-sm font-bold shadow-md shadow-teal-700/20 transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
             >
-              <HelpCircle className="w-4 h-4 text-white" />
-              <span>Kuis PJOK {quizzes.filter((q) => q.status === 'buka').length > 0 ? `(${quizzes.filter((q) => q.status === 'buka').length} Dibuka)` : ''}</span>
-            </button>
-            <button
-              onClick={() => onNavigateTab('history')}
-              className="px-4 py-2.5 rounded-xl bg-indigo-950/40 hover:bg-indigo-950/60 text-white text-xs sm:text-sm font-semibold backdrop-blur-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Award className="w-4 h-4 text-sky-300" />
-              <span>Riwayat Penilaian</span>
+              <Award className="w-4 h-4 text-white" />
+              <span>Formatif {quizzes.filter((q) => q.status === 'buka').length > 0 ? `(${quizzes.filter((q) => q.status === 'buka').length} Buka)` : ''}</span>
             </button>
           </div>
         </div>
@@ -170,16 +177,16 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
         <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-linear-to-r from-teal-500/10 via-emerald-500/10 to-teal-500/5 border border-teal-200/80 dark:border-teal-800/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <HelpCircle className="w-5 h-5" />
+              <Award className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="font-extrabold text-slate-900 dark:text-white text-sm font-heading">
-                  Kuis PJOK dari Guru
+                  Formatif PJOK
                 </h4>
                 {quizzes.filter((q) => q.status === 'buka').length > 0 ? (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 animate-pulse">
-                    <Unlock className="w-2.5 h-2.5" /> Kuis Dibuka
+                    <Unlock className="w-2.5 h-2.5" /> Ujian Formatif Dibuka
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
@@ -188,7 +195,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                Ada {quizzes.length} kuis terdaftar untuk kelas Anda. Guru mengatur status gembok kuis.
+                Tersedia {quizzes.length} asesmen formatif untuk menguji pemahaman materi PJOK Anda.
               </p>
             </div>
           </div>
@@ -197,7 +204,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
             onClick={() => onNavigateTab('quizzes')}
             className="self-start sm:self-center px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
           >
-            <span>Buka Menu Kuis</span>
+            <span>Buka Formatif</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

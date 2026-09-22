@@ -15,7 +15,8 @@ import {
   Award,
   Calendar,
   Flame,
-  ShieldCheck
+  ShieldCheck,
+  FileText
 } from 'lucide-react';
 
 interface TeacherDashboardProps {
@@ -128,6 +129,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2.5">
+            <button
+              onClick={() => onNavigate('learning-tasks')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/40 hover:bg-blue-500/60 text-white text-xs sm:text-sm font-semibold backdrop-blur-xs transition-colors cursor-pointer border border-white/20"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Tugas Pembelajaran</span>
+            </button>
             <button
               onClick={() => onNavigate('tasks')}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-blue-900 text-xs sm:text-sm font-bold shadow-md hover:bg-blue-50 transition-colors cursor-pointer"

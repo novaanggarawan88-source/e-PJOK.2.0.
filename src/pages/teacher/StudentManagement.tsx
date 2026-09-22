@@ -35,6 +35,8 @@ export const StudentManagement: React.FC = () => {
   const [csvText, setCsvText] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [selectedUids, setSelectedUids] = useState<string[]>([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   // Form inputs
   const [nama, setNama] = useState('');
@@ -109,7 +111,43 @@ export const StudentManagement: React.FC = () => {
   const handleDelete = async (uid: string, name: string) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus data murid: ${name}?`)) {
       await DatabaseService.deleteUser(uid);
+      setSelectedUids((prev) => prev.filter((id) => id !== uid));
       showNotice('Data murid berhasil dihapus');
+    }
+  };
+
+  const toggleSelect = (uid: string) => {
+    setSelectedUids((prev) =>
+      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (filteredStudents.length === 0) return;
+    const allFilteredSelected = filteredStudents.every((s) => selectedUids.includes(s.uid));
+    if (allFilteredSelected) {
+      const filteredUidSet = new Set(filteredStudents.map((s) => s.uid));
+      setSelectedUids((prev) => prev.filter((id) => !filteredUidSet.has(id)));
+    } else {
+      const newSelected = new Set(selectedUids);
+      filteredStudents.forEach((s) => newSelected.add(s.uid));
+      setSelectedUids(Array.from(newSelected));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUids.length === 0) return;
+    const count = selectedUids.length;
+    if (
+      window.confirm(
+        `Apakah Anda yakin ingin menghapus ${count} data murid yang dipilih? Tindakan ini tidak dapat dibatalkan.`
+      )
+    ) {
+      setIsDeletingBulk(true);
+      await DatabaseService.deleteUsers(selectedUids);
+      setSelectedUids([]);
+      setIsDeletingBulk(false);
+      showNotice(`${count} data murid berhasil dihapus sekaligus.`);
     }
   };
 
@@ -274,7 +312,7 @@ export const StudentManagement: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <Filter className="w-4 h-4 text-slate-400 shrink-0" />
           <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Filter Kelas:</span>
           <select
@@ -289,15 +327,163 @@ export const StudentManagement: React.FC = () => {
               </option>
             ))}
           </select>
+
+          {/* Quick Bulk Select Button */}
+          {filteredStudents.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${
+                filteredStudents.length > 0 && filteredStudents.every((s) => selectedUids.includes(s.uid))
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={filteredStudents.length > 0 && filteredStudents.every((s) => selectedUids.includes(s.uid))}
+                readOnly
+                className="w-3.5 h-3.5 rounded border-slate-300 pointer-events-none"
+              />
+              <span>
+                {filteredStudents.length > 0 && filteredStudents.every((s) => selectedUids.includes(s.uid))
+                  ? 'Batal Centang Semua'
+                  : `Centang Semua (${filteredStudents.length})`}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Students Table */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {/* Sticky Bulk Action Bar */}
+      {selectedUids.length > 0 && (
+        <div className="sticky top-20 z-20 bg-linear-to-r from-blue-700 via-indigo-700 to-blue-800 text-white rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl shadow-blue-900/25 border border-blue-500/30 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-white text-blue-700 font-extrabold text-sm shadow-xs shrink-0">
+              {selectedUids.length}
+            </span>
+            <div>
+              <p className="text-sm font-extrabold">
+                {selectedUids.length} murid dicentang untuk dihapus
+              </p>
+              <p className="text-xs text-blue-200">
+                Dari total {filteredStudents.length} murid yang ditampilkan ({selectedClass === 'Semua' ? 'Semua Kelas' : `Kelas ${selectedClass}`})
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            <button
+              type="button"
+              onClick={() => setSelectedUids([])}
+              className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-colors cursor-pointer"
+            >
+              Batal Centang
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={isDeletingBulk}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-md shadow-rose-950/20 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{isDeletingBulk ? 'Menghapus...' : `Hapus ${selectedUids.length} Murid Terpilih`}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Card View (Easy tapping on phones/tablets) */}
+      <div className="block lg:hidden space-y-3">
+        {filteredStudents.length === 0 ? (
+          <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400">
+            Tidak ditemukan data murid yang sesuai.
+          </div>
+        ) : (
+          filteredStudents.map((s, idx) => {
+            const isSelected = selectedUids.includes(s.uid);
+            return (
+              <div
+                key={s.uid}
+                className={`p-4 rounded-2xl border transition-all ${
+                  isSelected
+                    ? 'bg-blue-50/90 border-blue-500 shadow-md ring-2 ring-blue-500/20'
+                    : 'bg-white border-slate-200 shadow-xs'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center justify-center p-1.5 cursor-pointer rounded-lg hover:bg-blue-100/50">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(s.uid)}
+                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        aria-label={`Pilih murid ${s.nama}`}
+                      />
+                    </label>
+                    <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-xs">
+                      {s.nama.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm leading-tight">{s.nama}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Absen {s.nomorAbsen || '-'} • NIS: {s.nis || '-'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 shrink-0">
+                    {s.kelas || '-'}
+                  </span>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-slate-100/80 flex items-center justify-between text-xs text-slate-500">
+                  <div className="font-mono text-[11px] truncate max-w-[180px]">
+                    {s.email}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(s)}
+                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(s.uid, s.nama)}
+                      className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                      title="Hapus"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden lg:block bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="py-3.5 px-3 w-12 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="Pilih semua murid yang tampil"
+                    checked={
+                      filteredStudents.length > 0 &&
+                      filteredStudents.every((s) => selectedUids.includes(s.uid))
+                    }
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                </th>
                 <th className="py-3.5 px-4 w-12 text-center">NO</th>
                 <th className="py-3.5 px-4">NAMA MURID</th>
                 <th className="py-3.5 px-4">NIS</th>
@@ -312,16 +498,32 @@ export const StudentManagement: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                  <td colSpan={10} className="py-12 text-center text-slate-400">
                     Tidak ditemukan data murid yang sesuai.
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((s, idx) => (
-                  <tr key={s.uid} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 text-center font-medium text-slate-400">
-                      {idx + 1}
-                    </td>
+                filteredStudents.map((s, idx) => {
+                  const isSelected = selectedUids.includes(s.uid);
+                  return (
+                    <tr
+                      key={s.uid}
+                      className={`transition-colors ${
+                        isSelected ? 'bg-blue-50/80 hover:bg-blue-50' : 'hover:bg-slate-50/70'
+                      }`}
+                    >
+                      <td className="py-3.5 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          aria-label={`Pilih ${s.nama}`}
+                          checked={isSelected}
+                          onChange={() => toggleSelect(s.uid)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-medium text-slate-400">
+                        {idx + 1}
+                      </td>
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
@@ -408,8 +610,9 @@ export const StudentManagement: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })
+            )}
             </tbody>
           </table>
         </div>

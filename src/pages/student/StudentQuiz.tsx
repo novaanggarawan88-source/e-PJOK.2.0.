@@ -3,7 +3,7 @@ import { DatabaseService, subscribeToDataChanges } from '../../services/db';
 import { QuizItem, QuizSubmission } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import {
-  HelpCircle,
+  Award,
   Lock,
   Unlock,
   Clock,
@@ -201,14 +201,14 @@ export const StudentQuiz: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xs transition-colors">
         <div className="flex items-center gap-3">
           <span className="p-3 rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 border border-teal-200/60 dark:border-teal-800">
-            <HelpCircle className="w-6 h-6" />
+            <Award className="w-6 h-6" />
           </span>
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
-              Kuis & Ujian PJOK
+              Formatif PJOK
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Akses link kuis dari Guru PJOK. Kuis yang dikunci oleh guru hanya dapat dibuka saat jam kuis dimulai di kelas.
+              Akses asesmen formatif dari Guru PJOK. Formatif yang dikunci oleh guru hanya dapat dibuka saat jam asesmen dimulai di kelas.
             </p>
           </div>
         </div>
@@ -217,12 +217,12 @@ export const StudentQuiz: React.FC = () => {
       {/* Quiz Items List */}
       {quizzes.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-12 text-center">
-          <HelpCircle className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
+          <Award className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-700 dark:text-slate-300">
-            Belum Ada Kuis Tersedia
+            Belum Ada Asesmen Formatif Tersedia
           </h3>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-            Guru PJOK belum membagikan link kuis untuk kelas Anda ({user?.kelas || 'XI 7'}). Silakan tunggu instruksi guru di kelas.
+            Guru PJOK belum membagikan asesmen formatif untuk kelas Anda ({user?.kelas || 'XI 7'}). Silakan tunggu instruksi guru di kelas.
           </p>
         </div>
       ) : (

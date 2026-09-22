@@ -12,7 +12,8 @@ import {
   X,
   ClipboardList,
   HelpCircle,
-  BookOpen
+  BookOpen,
+  FileText
 } from 'lucide-react';
 
 export type TeacherMenu =
@@ -20,8 +21,9 @@ export type TeacherMenu =
   | 'students'
   | 'classes'
   | 'indicators'
-  | 'tasks'
   | 'materials'
+  | 'learning-tasks'
+  | 'tasks'
   | 'quizzes'
   | 'results'
   | 'recap'
@@ -70,8 +72,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'PEMBELAJARAN & NILAI',
       items: [
         { id: 'materials', label: 'Materi Pembelajaran', icon: BookOpen },
+        { id: 'learning-tasks', label: 'Tugas Pembelajaran', icon: FileText },
         { id: 'tasks', label: 'Tugas Penilaian', icon: ClipboardList },
-        { id: 'quizzes', label: 'Quis PJOK', icon: HelpCircle }
+        { id: 'quizzes', label: 'Formatif PJOK', icon: Award }
       ]
     },
     {

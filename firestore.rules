@@ -67,6 +67,16 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Learning Tasks collection (Tugas Pembelajaran PJOK)
+    match /learning_tasks/{taskId} {
+      allow read, write: if true;
+    }
+
+    // Learning Submissions collection (Pengumpulan Tugas Pembelajaran Siswa)
+    match /learning_submissions/{subId} {
+      allow read, write: if true;
+    }
+
     // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;

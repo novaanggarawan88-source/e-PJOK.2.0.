@@ -306,7 +306,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
           let msg = 'Email atau kata sandi tidak cocok.';
           if (err?.code === 'auth/operation-not-allowed') {
-            msg = 'Penyedia Email/Password belum aktif di Firebase Console. Gunakan tombol "Masuk dengan Google" atau akun demo.';
+            msg = 'Penyedia Email/Password belum aktif di Firebase Console. Gunakan tombol "Masuk dengan Google" atau periksa kredensial Anda.';
           }
           return { success: false, message: msg };
         }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { DatabaseService, subscribeToDataChanges } from '../services/db';
 import { AppConfig } from '../types';
 import { INITIAL_APP_CONFIG } from '../services/seedData';
+import { updateFavicon } from '../lib/favicon';
 import { Activity, Trophy, Medal, Flame, Dribbble, Dumbbell } from 'lucide-react';
 
 interface AppLogoProps {
@@ -28,7 +29,10 @@ export const AppLogo: React.FC<AppLogoProps> = ({
     let mounted = true;
     const fetchConfig = async () => {
       const data = await DatabaseService.getAppConfig();
-      if (mounted) setConfig(data);
+      if (mounted) {
+        setConfig(data);
+        updateFavicon(data.logoUrl, data.logoIconPreset);
+      }
     };
     fetchConfig();
     const unsub = subscribeToDataChanges(fetchConfig);

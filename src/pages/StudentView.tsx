@@ -7,20 +7,22 @@ import { StudentHistory } from './student/StudentHistory';
 import { StudentProfile } from './student/StudentProfile';
 import { StudentQuiz } from './student/StudentQuiz';
 import { StudentMaterials } from './student/StudentMaterials';
+import { StudentLearningTasks } from './student/StudentLearningTasks';
 import { AssessmentTask, AssessmentRecord, isTaskAssignedToClass } from '../types';
 import { DatabaseService, subscribeToDataChanges } from '../services/db';
 import { useAuth } from '../context/AuthContext';
 import {
+  LayoutDashboard,
   ClipboardList,
   Calendar,
   CheckCircle2,
   Clock,
   ArrowRight,
-  Home,
   History,
   User,
-  HelpCircle,
-  BookOpen
+  Award,
+  BookOpen,
+  CheckSquare
 } from 'lucide-react';
 
 interface StudentViewProps {
@@ -222,15 +224,17 @@ export const StudentView: React.FC<StudentViewProps> = ({
             </div>
           )}
 
+          {currentTab === 'materials' && <StudentMaterials />}
+
+          {currentTab === 'learning-tasks' && user && <StudentLearningTasks user={user} />}
+
+          {currentTab === 'quizzes' && <StudentQuiz />}
+
           {currentTab === 'history' && (
             <StudentHistory
               onEditAssessment={(record, task) => handleStartAssessment(task, record)}
             />
           )}
-
-          {currentTab === 'materials' && <StudentMaterials />}
-
-          {currentTab === 'quizzes' && <StudentQuiz />}
 
           {currentTab === 'profile' && <StudentProfile />}
         </main>
@@ -239,91 +243,104 @@ export const StudentView: React.FC<StudentViewProps> = ({
       {/* Sleek Native-App Like Mobile Bottom Dock for Students */}
       <nav
         aria-label="Navigasi Bawah Siswa"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800 px-2 py-1.5 shadow-lg flex items-center justify-around"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800 px-1 py-1.5 shadow-lg grid grid-cols-7"
       >
         <button
           type="button"
           onClick={() => setCurrentTab('home')}
-          className={`flex flex-col items-center justify-center min-h-[44px] px-2 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+          className={`flex flex-col items-center justify-center min-h-[44px] px-1 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             currentTab === 'home'
               ? 'text-teal-600 dark:text-teal-400 font-bold'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Home className={`w-5 h-5 ${currentTab === 'home' ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px] mt-0.5">Beranda</span>
+          <LayoutDashboard className={`w-4.5 h-4.5 ${currentTab === 'home' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[9px] mt-0.5 truncate max-w-[40px]">Dashboard</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setCurrentTab('materials')}
+          className={`flex flex-col items-center justify-center min-h-[44px] px-1 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            currentTab === 'materials'
+              ? 'text-teal-600 dark:text-teal-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <BookOpen className={`w-4.5 h-4.5 ${currentTab === 'materials' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[9px] mt-0.5 truncate max-w-[40px]">Materi</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setCurrentTab('learning-tasks')}
+          className={`flex flex-col items-center justify-center min-h-[44px] px-1 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            currentTab === 'learning-tasks'
+              ? 'text-teal-600 dark:text-teal-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <CheckSquare className={`w-4.5 h-4.5 ${currentTab === 'learning-tasks' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[9px] mt-0.5 truncate max-w-[40px]">Tugas</span>
         </button>
 
         <button
           type="button"
           onClick={() => setCurrentTab('tasks')}
-          className={`relative flex flex-col items-center justify-center min-h-[44px] px-2 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+          className={`relative flex flex-col items-center justify-center min-h-[44px] px-1 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             currentTab === 'tasks'
               ? 'text-teal-600 dark:text-teal-400 font-bold'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
           <div className="relative">
-            <ClipboardList className={`w-5 h-5 ${currentTab === 'tasks' ? 'stroke-[2.5]' : ''}`} />
+            <ClipboardList className={`w-4.5 h-4.5 ${currentTab === 'tasks' ? 'stroke-[2.5]' : ''}`} />
             {pendingCount > 0 && (
-              <span className="absolute -top-1 -right-2 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full">
+              <span className="absolute -top-1 -right-2 bg-rose-500 text-white text-[9px] font-black px-1 py-0.2 rounded-full">
                 {pendingCount}
               </span>
             )}
           </div>
-          <span className="text-[10px] mt-0.5">Tugas</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setCurrentTab('materials')}
-          className={`flex flex-col items-center justify-center min-h-[44px] px-2 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-            currentTab === 'materials'
-              ? 'text-teal-600 dark:text-teal-400 font-bold'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <BookOpen className={`w-5 h-5 ${currentTab === 'materials' ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px] mt-0.5">Materi</span>
+          <span className="text-[9px] mt-0.5 truncate max-w-[40px]">Penilaian</span>
         </button>
 
         <button
           type="button"
           onClick={() => setCurrentTab('quizzes')}
-          className={`flex flex-col items-center justify-center min-h-[44px] px-2 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+          className={`flex flex-col items-center justify-center min-h-[44px] px-1 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             currentTab === 'quizzes'
               ? 'text-teal-600 dark:text-teal-400 font-bold'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <HelpCircle className={`w-5 h-5 ${currentTab === 'quizzes' ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px] mt-0.5">Quis</span>
+          <Award className={`w-4.5 h-4.5 ${currentTab === 'quizzes' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[9px] mt-0.5 truncate max-w-[40px]">Formatif</span>
         </button>
 
         <button
           type="button"
           onClick={() => setCurrentTab('history')}
-          className={`flex flex-col items-center justify-center min-h-[44px] px-2 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+          className={`flex flex-col items-center justify-center min-h-[44px] px-1 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             currentTab === 'history'
               ? 'text-teal-600 dark:text-teal-400 font-bold'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <History className={`w-5 h-5 ${currentTab === 'history' ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px] mt-0.5">Riwayat</span>
+          <History className={`w-4.5 h-4.5 ${currentTab === 'history' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[9px] mt-0.5 truncate max-w-[40px]">Riwayat</span>
         </button>
 
         <button
           type="button"
           onClick={() => setCurrentTab('profile')}
-          className={`flex flex-col items-center justify-center min-h-[44px] px-2 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+          className={`flex flex-col items-center justify-center min-h-[44px] px-1 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             currentTab === 'profile'
               ? 'text-teal-600 dark:text-teal-400 font-bold'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <User className={`w-5 h-5 ${currentTab === 'profile' ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px] mt-0.5">Profil</span>
+          <User className={`w-4.5 h-4.5 ${currentTab === 'profile' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[9px] mt-0.5 truncate max-w-[40px]">Profil</span>
         </button>
       </nav>
     </div>

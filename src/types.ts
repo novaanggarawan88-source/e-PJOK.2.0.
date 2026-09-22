@@ -212,3 +212,38 @@ export interface MaterialProgress {
   completedAt: string;
 }
 
+export interface LearningTaskItem {
+  id: string;
+  judul: string;
+  materi: string; // Topik bab, misal "Permainan Bola Besar (Bola Basket)", "Kebugaran Jasmani"
+  kelas: string; // "Semua Kelas" atau spesifik kelas
+  deskripsi: string;
+  instruksi: string[];
+  batasWaktu: string;
+  status: 'aktif' | 'draf' | 'selesai';
+  lampiranUrl?: string; // Tautan LKPD / Google Drive / Modul Guru
+  lampiranNama?: string;
+  tipePengumpulan: 'langsung' | 'upload' | 'keduanya' | 'teks_dan_link' | 'file_foto_video' | 'semua';
+  disableCopyPaste?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface LearningTaskSubmission {
+  id: string;
+  taskId: string;
+  taskJudul?: string;
+  studentId: string;
+  studentName: string;
+  studentClass: string;
+  studentNoAbsen?: string;
+  catatanJawaban: string;
+  linkLampiran?: string;
+  fileBuktiUrl?: string;
+  fileBuktiNama?: string;
+  submittedAt: string;
+  status: 'terkirim' | 'dinilai';
+  nilai?: number;
+  catatanGuru?: string;
+}
+

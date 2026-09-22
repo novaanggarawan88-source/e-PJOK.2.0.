@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DatabaseService, subscribeToDataChanges } from '../../services/db';
 import { QuizItem, ClassItem, QuizSubmission } from '../../types';
 import {
+  Award,
   HelpCircle,
   Plus,
   Edit2,
@@ -225,14 +226,14 @@ export const QuizManagement: React.FC = () => {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="p-2.5 rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 border border-teal-200/60 dark:border-teal-800">
-                <HelpCircle className="w-6 h-6" />
+                <Award className="w-6 h-6" />
               </span>
               <div>
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
-                  Manajemen Quis PJOK
+                  Manajemen Formatif PJOK
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                  Kelola dan bagikan evaluasi kuis PJOK untuk siswa secara terstruktur dan terpadu.
+                  Kelola dan bagikan asesmen formatif PJOK untuk siswa secara terstruktur dan terpadu.
                 </p>
               </div>
             </div>
@@ -243,7 +244,7 @@ export const QuizManagement: React.FC = () => {
             className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-sm font-bold shadow-md shadow-teal-600/20 transition-all cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Tambah Quis</span>
+            <span>+ Tambah Formatif</span>
           </button>
         </div>
 
@@ -251,10 +252,10 @@ export const QuizManagement: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
           <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Total Kuis Terdaftar
+              Total Formatif Terdaftar
             </p>
             <p className="text-2xl font-black text-slate-900 dark:text-white font-heading mt-1">
-              {quizzes.length} <span className="text-xs font-normal text-slate-500">Kuis</span>
+              {quizzes.length} <span className="text-xs font-normal text-slate-500">Asesmen</span>
             </p>
           </div>
 

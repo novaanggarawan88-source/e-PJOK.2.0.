@@ -8,7 +8,9 @@ import {
   QuizItem,
   QuizSubmission,
   MaterialItem,
-  MaterialProgress
+  MaterialProgress,
+  LearningTaskItem,
+  LearningTaskSubmission
 } from '../types';
 import {
   INITIAL_CLASSES,
@@ -18,7 +20,8 @@ import {
   INITIAL_ASSESSMENTS,
   INITIAL_APP_CONFIG,
   INITIAL_QUIZZES,
-  INITIAL_MATERIALS
+  INITIAL_MATERIALS,
+  INITIAL_LEARNING_TASKS
 } from './seedData';
 import { db, storage, isFirebaseConfigured } from '../lib/firebase';
 import {
@@ -50,6 +53,8 @@ const LS_QUIZZES = 'pjok_data_quizzes';
 const LS_QUIZ_SUBMISSIONS = 'pjok_data_quiz_submissions';
 const LS_MATERIALS = 'pjok_data_materials';
 const LS_MATERIAL_PROGRESS = 'pjok_data_material_progress';
+const LS_LEARNING_TASKS = 'pjok_data_learning_tasks';
+const LS_LEARNING_SUBMISSIONS = 'pjok_data_learning_submissions';
 
 // Event listener subscribers for reactive updates across the app
 type ListenerCallback = () => void;
@@ -249,6 +254,123 @@ export const initRealtimeCloudSync = () => {
 };
 
 // Helper to initialize local storage with initial seed data if not present
+const DUMMY_CLEARED_KEY = 'pjok_dummy_cleared_prod_v4';
+
+export const purgeDummyData = async () => {
+  try {
+    const dummyUserIds = new Set(['murid-1', 'murid-2', 'murid-3', 'murid-4', 'murid-5']);
+    const dummyTaskIds = new Set(['task-1']);
+    const dummyAssessmentIds = new Set(['asm-1', 'asm-2', 'asm-3']);
+    const dummyQuizIds = new Set(['quiz-basket-1']);
+    const dummyMaterialIds = new Set(['mat-appscript-1', 'mat-voli-1', 'mat-basket-1', 'mat-kebugaran-1']);
+    const dummyLearningTaskIds = new Set(['lt-1', 'lt-2']);
+
+    // 1. Clean localStorage users
+    const rawUsers = localStorage.getItem(LS_USERS);
+    if (rawUsers) {
+      try {
+        const users: UserProfile[] = JSON.parse(rawUsers);
+        const cleaned = users.filter((u) => !dummyUserIds.has(u.uid));
+        localStorage.setItem(LS_USERS, JSON.stringify(cleaned));
+      } catch {}
+    }
+
+    // 2. Clean localStorage tasks
+    const rawTasks = localStorage.getItem(LS_TASKS);
+    if (rawTasks) {
+      try {
+        const tasks: AssessmentTask[] = JSON.parse(rawTasks);
+        const cleaned = tasks.filter((t) => !dummyTaskIds.has(t.id));
+        localStorage.setItem(LS_TASKS, JSON.stringify(cleaned));
+      } catch {}
+    }
+
+    // 3. Clean localStorage assessments
+    const rawAssessments = localStorage.getItem(LS_ASSESSMENTS);
+    if (rawAssessments) {
+      try {
+        const assessments: AssessmentRecord[] = JSON.parse(rawAssessments);
+        const cleaned = assessments.filter((a) => !dummyAssessmentIds.has(a.id) && !dummyTaskIds.has(a.taskId));
+        localStorage.setItem(LS_ASSESSMENTS, JSON.stringify(cleaned));
+      } catch {}
+    }
+
+    // 4. Clean localStorage quizzes
+    const rawQuizzes = localStorage.getItem(LS_QUIZZES);
+    if (rawQuizzes) {
+      try {
+        const quizzes: any[] = JSON.parse(rawQuizzes);
+        const cleaned = quizzes.filter((q) => !dummyQuizIds.has(q.id));
+        localStorage.setItem(LS_QUIZZES, JSON.stringify(cleaned));
+      } catch {}
+    }
+
+    // 5. Clean localStorage materials
+    const rawMaterials = localStorage.getItem(LS_MATERIALS);
+    if (rawMaterials) {
+      try {
+        const materials: any[] = JSON.parse(rawMaterials);
+        const cleaned = materials.filter((m) => !dummyMaterialIds.has(m.id));
+        localStorage.setItem(LS_MATERIALS, JSON.stringify(cleaned));
+      } catch {}
+    }
+
+    // 6. Clean localStorage learning tasks
+    const rawLT = localStorage.getItem(LS_LEARNING_TASKS);
+    if (rawLT) {
+      try {
+        const ltasks: any[] = JSON.parse(rawLT);
+        const cleaned = ltasks.filter((lt) => !dummyLearningTaskIds.has(lt.id));
+        localStorage.setItem(LS_LEARNING_TASKS, JSON.stringify(cleaned));
+      } catch {}
+    }
+
+    // 7. Clean from Firestore if configured
+    if (isFirebaseConfigured() && db) {
+      for (const uid of dummyUserIds) {
+        try {
+          await deleteDoc(doc(db, 'pengguna', uid));
+          await deleteDoc(doc(db, 'users', uid));
+        } catch {}
+      }
+      for (const id of dummyTaskIds) {
+        try {
+          await deleteDoc(doc(db, 'tasks', id));
+        } catch {}
+      }
+      for (const id of dummyAssessmentIds) {
+        try {
+          await deleteDoc(doc(db, 'assessments', id));
+        } catch {}
+      }
+      for (const id of dummyQuizIds) {
+        try {
+          await deleteDoc(doc(db, 'quizzes', id));
+        } catch {}
+      }
+      for (const id of dummyMaterialIds) {
+        try {
+          await deleteDoc(doc(db, 'materials', id));
+        } catch {}
+      }
+      for (const id of dummyLearningTaskIds) {
+        try {
+          await deleteDoc(doc(db, 'learning_tasks', id));
+        } catch {}
+      }
+    }
+
+    localStorage.setItem(DUMMY_CLEARED_KEY, 'true');
+    notifySubscribers();
+  } catch (err) {
+    console.warn('purgeDummyData error:', err);
+  }
+};
+
+if (typeof window !== 'undefined' && !localStorage.getItem(DUMMY_CLEARED_KEY)) {
+  purgeDummyData();
+}
+
 const getStored = <T>(key: string, defaultData: T[]): T[] => {
   try {
     const raw = localStorage.getItem(key);
@@ -361,6 +483,26 @@ export const DatabaseService = {
     }
     const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
     const filtered = all.filter((u) => u.uid !== uid);
+    setStored(LS_USERS, filtered);
+  },
+
+  async deleteUsers(uids: string[]): Promise<void> {
+    if (!uids || uids.length === 0) return;
+    const uidSet = new Set(uids);
+    if (isFirebaseConfigured() && db) {
+      try {
+        const promises: Promise<any>[] = [];
+        for (const uid of uids) {
+          promises.push(deleteDoc(doc(db, 'pengguna', uid)));
+          promises.push(deleteDoc(doc(db, 'users', uid)));
+        }
+        await Promise.all(promises);
+      } catch (err) {
+        console.warn('Firestore deleteUsers error:', err);
+      }
+    }
+    const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+    const filtered = all.filter((u) => !uidSet.has(u.uid));
     setStored(LS_USERS, filtered);
   },
 
@@ -1061,6 +1203,144 @@ export const DatabaseService = {
     notifySubscribers();
   },
 
+  // --- TUGAS PEMBELAJARAN (Learning Tasks) ---
+  async getLearningTasks(kelas?: string, onlyActive: boolean = false): Promise<LearningTaskItem[]> {
+    let result: LearningTaskItem[] = [];
+    if (isFirebaseConfigured() && db) {
+      try {
+        const snap = await getDocs(collection(db, 'learning_tasks'));
+        if (!snap.empty) {
+          const cloudTasks = snap.docs.map((d) => d.data() as LearningTaskItem);
+          try {
+            localStorage.setItem(LS_LEARNING_TASKS, JSON.stringify(cloudTasks));
+          } catch {}
+          result = cloudTasks;
+        }
+      } catch (err) {
+        console.warn('Firestore getLearningTasks error, fallback to local storage:', err);
+      }
+    }
+    if (result.length === 0) {
+      result = getStored<LearningTaskItem>(LS_LEARNING_TASKS, INITIAL_LEARNING_TASKS);
+    }
+    let filtered = result;
+    if (kelas && kelas !== 'Semua Kelas') {
+      filtered = filtered.filter((t) => t.kelas === 'Semua Kelas' || t.kelas === kelas);
+    }
+    if (onlyActive) {
+      filtered = filtered.filter((t) => t.status === 'aktif');
+    }
+    return filtered;
+  },
+
+  async getLearningTask(id: string): Promise<LearningTaskItem | null> {
+    if (isFirebaseConfigured() && db) {
+      try {
+        const snap = await getDoc(doc(db, 'learning_tasks', id));
+        if (snap.exists()) {
+          return snap.data() as LearningTaskItem;
+        }
+      } catch (err) {
+        console.warn('Firestore getLearningTask error:', err);
+      }
+    }
+    const all = getStored<LearningTaskItem>(LS_LEARNING_TASKS, INITIAL_LEARNING_TASKS);
+    return all.find((t) => t.id === id) || null;
+  },
+
+  async saveLearningTask(task: LearningTaskItem): Promise<void> {
+    const cleanTask = JSON.parse(JSON.stringify(task));
+    if (isFirebaseConfigured() && db) {
+      try {
+        await setDoc(doc(db, 'learning_tasks', task.id), cleanTask, { merge: true });
+      } catch (err) {
+        console.warn('Firestore saveLearningTask error:', err);
+      }
+    }
+    const all = getStored<LearningTaskItem>(LS_LEARNING_TASKS, INITIAL_LEARNING_TASKS);
+    const idx = all.findIndex((t) => t.id === task.id);
+    if (idx >= 0) {
+      all[idx] = cleanTask;
+    } else {
+      all.unshift(cleanTask);
+    }
+    setStored(LS_LEARNING_TASKS, all);
+    notifySubscribers();
+  },
+
+  async deleteLearningTask(id: string): Promise<void> {
+    if (isFirebaseConfigured() && db) {
+      try {
+        await deleteDoc(doc(db, 'learning_tasks', id));
+      } catch (err) {
+        console.warn('Firestore deleteLearningTask error:', err);
+      }
+    }
+    const all = getStored<LearningTaskItem>(LS_LEARNING_TASKS, INITIAL_LEARNING_TASKS);
+    const filtered = all.filter((t) => t.id !== id);
+    setStored(LS_LEARNING_TASKS, filtered);
+    notifySubscribers();
+  },
+
+  // --- PENGUMPULAN TUGAS PEMBELAJARAN (Learning Submissions) ---
+  async getLearningSubmissions(taskId?: string, studentId?: string): Promise<LearningTaskSubmission[]> {
+    if (isFirebaseConfigured() && db) {
+      try {
+        const snap = await getDocs(collection(db, 'learning_submissions'));
+        if (!snap.empty) {
+          const cloudSubs = snap.docs.map((d) => d.data() as LearningTaskSubmission);
+          try {
+            localStorage.setItem(LS_LEARNING_SUBMISSIONS, JSON.stringify(cloudSubs));
+          } catch {}
+          let result = cloudSubs;
+          if (taskId) result = result.filter((s) => s.taskId === taskId);
+          if (studentId) result = result.filter((s) => s.studentId === studentId);
+          return result;
+        }
+      } catch (err) {
+        console.warn('Firestore getLearningSubmissions error:', err);
+      }
+    }
+    let local = getStored<LearningTaskSubmission>(LS_LEARNING_SUBMISSIONS, []);
+    if (taskId) local = local.filter((s) => s.taskId === taskId);
+    if (studentId) local = local.filter((s) => s.studentId === studentId);
+    return local;
+  },
+
+  async saveLearningSubmission(submission: LearningTaskSubmission): Promise<void> {
+    const cleanSub = JSON.parse(JSON.stringify(submission));
+    if (isFirebaseConfigured() && db) {
+      try {
+        await setDoc(doc(db, 'learning_submissions', submission.id), cleanSub, { merge: true });
+      } catch (err) {
+        console.warn('Firestore saveLearningSubmission error:', err);
+      }
+    }
+    const all = getStored<LearningTaskSubmission>(LS_LEARNING_SUBMISSIONS, []);
+    const idx = all.findIndex((s) => s.id === submission.id);
+    if (idx >= 0) {
+      all[idx] = cleanSub;
+    } else {
+      all.unshift(cleanSub);
+    }
+    setStored(LS_LEARNING_SUBMISSIONS, all);
+    notifySubscribers();
+  },
+
+  async deleteLearningSubmission(id: string): Promise<void> {
+    if (isFirebaseConfigured() && db) {
+      try {
+        await deleteDoc(doc(db, 'learning_submissions', id));
+      } catch (err) {
+        console.warn('Firestore deleteLearningSubmission error:', err);
+      }
+    }
+    const all = getStored<LearningTaskSubmission>(LS_LEARNING_SUBMISSIONS, []);
+    const filtered = all.filter((s) => s.id !== id);
+    setStored(LS_LEARNING_SUBMISSIONS, filtered);
+    notifySubscribers();
+  },
+
   async resetToSeedData(): Promise<void> {
     this.resetToDefaults();
   },
@@ -1124,10 +1404,16 @@ export const DatabaseService = {
         await setDoc(doc(db, 'materials', m.id), m, { merge: true });
       }
 
+      // 9. Sinkronkan Tugas Pembelajaran
+      const localLearningTasks = getStored<LearningTaskItem>(LS_LEARNING_TASKS, INITIAL_LEARNING_TASKS);
+      for (const lt of localLearningTasks) {
+        await setDoc(doc(db, 'learning_tasks', lt.id), lt, { merge: true });
+      }
+
       notifySubscribers();
       return {
         success: true,
-        message: 'Semua data (Logo, Pengaturan, Kelas, Siswa, Indikator, Tugas, Kuis, & Materi) berhasil disinkronkan ke Firebase Cloud. Sekarang laptop dan HP sinkron!'
+        message: 'Semua data (Logo, Pengaturan, Kelas, Siswa, Indikator, Tugas Penilaian, Kuis, Materi, & Tugas Pembelajaran) berhasil disinkronkan ke Firebase Cloud. Sekarang laptop dan HP sinkron!'
       };
     } catch (error: any) {
       console.error('Error saat sinkronisasi ke cloud:', error);
@@ -1168,6 +1454,13 @@ export const DatabaseService = {
           await setDoc(doc(db, 'materials', m.id), m, { merge: true });
         }
       }
+      // Pastikan initial tugas pembelajaran ada di Firestore jika kosong
+      const snapLT = await getDocs(collection(db, 'learning_tasks'));
+      if (snapLT.empty) {
+        for (const lt of INITIAL_LEARNING_TASKS) {
+          await setDoc(doc(db, 'learning_tasks', lt.id), lt, { merge: true });
+        }
+      }
     } catch (e) {
       console.warn('seedPenggunaToFirestore notice:', e);
     }
@@ -1185,6 +1478,8 @@ export const DatabaseService = {
     localStorage.removeItem(LS_QUIZ_SUBMISSIONS);
     localStorage.removeItem(LS_MATERIALS);
     localStorage.removeItem(LS_MATERIAL_PROGRESS);
+    localStorage.removeItem(LS_LEARNING_TASKS);
+    localStorage.removeItem(LS_LEARNING_SUBMISSIONS);
     localStorage.setItem(LS_USERS, JSON.stringify(INITIAL_USERS));
     localStorage.setItem(LS_CLASSES, JSON.stringify(INITIAL_CLASSES));
     localStorage.setItem(LS_INDICATORS, JSON.stringify(INITIAL_INDICATORS));
@@ -1195,6 +1490,8 @@ export const DatabaseService = {
     localStorage.setItem(LS_QUIZ_SUBMISSIONS, JSON.stringify([]));
     localStorage.setItem(LS_MATERIALS, JSON.stringify(INITIAL_MATERIALS));
     localStorage.setItem(LS_MATERIAL_PROGRESS, JSON.stringify([]));
+    localStorage.setItem(LS_LEARNING_TASKS, JSON.stringify(INITIAL_LEARNING_TASKS));
+    localStorage.setItem(LS_LEARNING_SUBMISSIONS, JSON.stringify([]));
     notifySubscribers();
   }
 };

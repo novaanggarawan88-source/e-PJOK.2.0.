@@ -271,9 +271,9 @@ export const StudentAssessmentForm: React.FC<StudentAssessmentFormProps> = ({
         id: existingRecord ? existingRecord.id : `asm-${Date.now()}`,
         taskId: task.id,
         taskTitle: task.nama,
-        assessorId: user?.uid || 'murid-1',
-        assessorUserId: user?.uid || 'murid-1',
-        assessorName: user?.nama || 'Andi Pratama',
+        assessorId: user?.uid || '',
+        assessorUserId: user?.uid || '',
+        assessorName: user?.nama || 'Murid Penilai',
         assessorClass: user?.kelas || task.kelas,
         targetId: selectedTargetId,
         targetUserId: selectedTargetId,
@@ -602,13 +602,13 @@ export const StudentAssessmentForm: React.FC<StudentAssessmentFormProps> = ({
                     <UploadCloud className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">
-                    Klik untuk memilih file video (hingga 1 menit) atau foto dari HP / Laptop
+                    Pilih video rekaman gerakan teman (disarankan 10–20 detik) atau foto dari HP / Laptop
                   </p>
-                  <p className="text-[11px] text-slate-400">
-                    Mendukung format MP4, WEBM, MOV, JPG, PNG (Maks 150MB)
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-md">
+                    Format MP4, WEBM, MOV (Disarankan maks 25MB agar instan dimuat guru). Jika video berukuran besar, gunakan opsi tab <strong>Tautan Google Drive</strong>.
                   </p>
                   <div className="mt-1 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-full text-[11px] font-semibold">
-                    ⚡ Penyimpanan Cepat: Video langsung tersinkronisasi ke database
+                    ⚡ Sinkronisasi Cloud: Rekaman otomatis tersimpan untuk penilaian Guru & Siswa
                   </div>
                   <input
                     type="file"

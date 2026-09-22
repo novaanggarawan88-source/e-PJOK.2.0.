@@ -332,12 +332,12 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
                       </span>
                     )}
                   </div>
-                  <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 flex items-center justify-center max-h-72">
+                  <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 flex items-center justify-center p-1 sm:p-2">
                     <EvidenceViewer
                       evidenceUrl={detailRecord.evidenceUrl}
                       thumbnailUrl={detailRecord.thumbnailUrl}
                       evidenceType={detailRecord.evidenceType}
-                      className="w-full max-h-72 object-contain"
+                      className="w-full max-h-80 object-contain rounded-xl"
                       onUpdateEvidence={handleUpdateEvidence}
                     />
                   </div>

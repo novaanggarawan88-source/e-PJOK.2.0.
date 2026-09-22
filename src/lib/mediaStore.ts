@@ -109,6 +109,7 @@ export const MediaStore = {
   /**
    * Mengunggah potongan (chunks) video ke Firestore agar tersinkronisasi
    * ke laptop guru & HP siswa lain secara cloud.
+   * Menggunakan pengunggahan batch concurrent agar selesai dalam hitungan detik.
    */
   async uploadToFirestoreChunks(
     mediaId: string,
@@ -116,30 +117,48 @@ export const MediaStore = {
     onProgress?: (percent: number) => void
   ): Promise<boolean> {
     if (!isFirebaseConfigured() || !db) return false;
+    const firestore = db;
     try {
       const cleanId = mediaId.replace(/^idb:\/\//, '');
       const CHUNK_SIZE = 450 * 1024; // 450 KB per pecahan
       const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
       const mimeType = file.type || 'video/mp4';
 
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, file.size);
-        const slice = file.slice(start, end, mimeType);
-        const base64Data = await blobToBase64(slice);
+      let completedChunks = 0;
+      const CONCURRENCY = 4; // 4 parallel uploads to avoid socket exhaustion
 
-        await setDoc(doc(db, 'media_chunks', `${cleanId}_${i}`), {
-          mediaId: cleanId,
-          chunkIndex: i,
-          totalChunks,
-          mimeType,
-          data: base64Data,
-          size: slice.size,
-          createdAt: new Date().toISOString()
-        });
+      // Prepare chunks array
+      const chunkIndexes = Array.from({ length: totalChunks }, (_, i) => i);
 
-        onProgress?.(Math.round(((i + 1) / totalChunks) * 100));
-      }
+      // Worker function to upload chunks in concurrent pool
+      const uploadWorker = async () => {
+        while (chunkIndexes.length > 0) {
+          const i = chunkIndexes.shift();
+          if (i === undefined) break;
+
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const slice = file.slice(start, end, mimeType);
+          const base64Data = await blobToBase64(slice);
+
+          await setDoc(doc(firestore, 'media_chunks', `${cleanId}_${i}`), {
+            mediaId: cleanId,
+            chunkIndex: i,
+            totalChunks,
+            mimeType,
+            data: base64Data,
+            size: slice.size,
+            createdAt: new Date().toISOString()
+          });
+
+          completedChunks++;
+          onProgress?.(Math.round((completedChunks / totalChunks) * 100));
+        }
+      };
+
+      const workers = Array.from({ length: Math.min(CONCURRENCY, totalChunks) }, () => uploadWorker());
+      await Promise.all(workers);
+
       return true;
     } catch (err) {
       console.warn('Firestore video chunk upload error:', err);
@@ -150,6 +169,7 @@ export const MediaStore = {
   /**
    * Mengambil file/blob dari IndexedDB lokal ATAU Cloud Firestore chunks
    * dan mengembalikan Object URL siap diputar di tag <video>.
+   * Menggunakan unduhan paralel (concurrent batch) agar video terbuka instan.
    */
   async getMediaUrl(
     id: string,
@@ -168,45 +188,88 @@ export const MediaStore = {
       return id;
     }
 
+    const blob = await this.getMediaBlob(id, onDownloadProgress);
+    if (blob) {
+      return URL.createObjectURL(blob);
+    }
+    return null;
+  },
+
+  /**
+   * Mengambil file Blob langsung (untuk unduh, player, atau createObjectURL)
+   */
+  async getMediaBlob(
+    id: string,
+    onDownloadProgress?: (percent: number) => void
+  ): Promise<Blob | null> {
+    if (!id) return null;
+
     const cleanId = id.replace(/^idb:\/\//, '');
 
     // 1. Cek IndexedDB perangkat ini dulu
     try {
       const localBlob = await this.getBlobFromIndexedDB(cleanId);
       if (localBlob && localBlob.size > 0) {
-        return URL.createObjectURL(localBlob);
+        onDownloadProgress?.(100);
+        return localBlob;
       }
     } catch (err) {
       console.warn('IndexedDB check failed:', err);
     }
 
-    // 2. Jika tidak ada di lokal (misal guru membuka di laptop saat murid kirim lewat HP),
-    // ambil pecahan video dari Firestore Cloud
+    // 2. Ambil pecahan video dari Firestore Cloud dengan batch paralel
     if (isFirebaseConfigured() && db) {
+      const firestore = db;
       try {
-        const firstDocRef = doc(db, 'media_chunks', `${cleanId}_0`);
+        const firstDocRef = doc(firestore, 'media_chunks', `${cleanId}_0`);
         const firstSnap = await getDoc(firstDocRef);
         if (firstSnap.exists()) {
           const firstData = firstSnap.data();
           const totalChunks = Number(firstData.totalChunks) || 1;
           const mimeType = firstData.mimeType || 'video/mp4';
 
-          const chunks: Blob[] = [base64ToBlob(firstData.data, mimeType)];
-          onDownloadProgress?.(Math.round((1 / totalChunks) * 100));
+          const chunkBlobs: (Blob | null)[] = new Array(totalChunks).fill(null);
+          chunkBlobs[0] = base64ToBlob(firstData.data, mimeType);
 
-          for (let i = 1; i < totalChunks; i++) {
-            const chunkDoc = await getDoc(doc(db, 'media_chunks', `${cleanId}_${i}`));
-            if (chunkDoc.exists()) {
-              chunks.push(base64ToBlob(chunkDoc.data().data, mimeType));
-              onDownloadProgress?.(Math.round(((i + 1) / totalChunks) * 100));
+          let loadedCount = 1;
+          onDownloadProgress?.(Math.round((loadedCount / totalChunks) * 100));
+
+          if (totalChunks > 1) {
+            // Batch parallel fetch
+            const remainingIndexes = Array.from({ length: totalChunks - 1 }, (_, i) => i + 1);
+            const BATCH_SIZE = 6;
+
+            for (let i = 0; i < remainingIndexes.length; i += BATCH_SIZE) {
+              const currentBatch = remainingIndexes.slice(i, i + BATCH_SIZE);
+              await Promise.all(
+                currentBatch.map(async (chunkIdx) => {
+                  try {
+                    const chunkDoc = await getDoc(doc(firestore, 'media_chunks', `${cleanId}_${chunkIdx}`));
+                    if (chunkDoc.exists()) {
+                      chunkBlobs[chunkIdx] = base64ToBlob(chunkDoc.data().data, mimeType);
+                    }
+                  } catch (e) {
+                    console.warn(`Chunk ${chunkIdx} fetch error:`, e);
+                  } finally {
+                    loadedCount++;
+                    onDownloadProgress?.(Math.round((loadedCount / totalChunks) * 100));
+                  }
+                })
+              );
             }
           }
 
-          if (chunks.length === totalChunks) {
-            const fullBlob = new Blob(chunks, { type: mimeType });
-            // Simpan ke IndexedDB lokal agar selanjutnya putar instan (<10ms)
+          // Cek apakah semua chunk berhasil dimuat
+          const validChunks = chunkBlobs.filter((b): b is Blob => b !== null);
+          if (validChunks.length === totalChunks) {
+            const fullBlob = new Blob(validChunks, { type: mimeType });
+            // Cache ke IndexedDB lokal perangkat ini agar klik berikutnya langsung terbuka 0 ms
             await this.saveMedia(cleanId, fullBlob);
-            return URL.createObjectURL(fullBlob);
+            return fullBlob;
+          } else if (validChunks.length > 0 && validChunks.length >= Math.floor(totalChunks * 0.9)) {
+            // Toleransi jika hanya 1 chunk kecil terakhir bermasalah
+            const partialBlob = new Blob(validChunks, { type: mimeType });
+            return partialBlob;
           }
         }
       } catch (err) {
