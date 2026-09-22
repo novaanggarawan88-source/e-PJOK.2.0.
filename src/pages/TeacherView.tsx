@@ -31,8 +31,8 @@ export const TeacherView: React.FC<TeacherViewProps> = ({
   };
 
   return (
-    <div className="min-h-[calc(100vh-5rem)] flex">
-      {/* Teacher Sidebar */}
+    <div className="min-h-[calc(100vh-64px)] sm:min-h-[calc(100vh-76px)] flex">
+      {/* Teacher Sidebar (Locked & Fixed on Left) */}
       <Sidebar
         currentMenu={currentMenu}
         onSelectMenu={(menu) => {
@@ -43,8 +43,11 @@ export const TeacherView: React.FC<TeacherViewProps> = ({
         onClose={onCloseSidebar}
       />
 
+      {/* Spacer so main content is not hidden behind the fixed sidebar on desktop */}
+      <div className="hidden lg:block w-64 shrink-0" aria-hidden="true" />
+
       {/* Main Content Area */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full min-w-0">
         {currentMenu === 'dashboard' && (
           <TeacherDashboard
             onNavigate={setCurrentMenu}

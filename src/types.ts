@@ -72,6 +72,22 @@ export interface AssessmentTask {
   createdAt: string;
 }
 
+export function isTaskAssignedToClass(task: AssessmentTask, studentClass?: string): boolean {
+  if (!studentClass) return true;
+  const sClass = studentClass.trim().toLowerCase();
+  
+  if (task.targetKelas && Array.isArray(task.targetKelas) && task.targetKelas.length > 0) {
+    return task.targetKelas.some((k) => {
+      const lower = k.trim().toLowerCase();
+      return lower === sClass || lower === 'semua kelas' || lower === 'all';
+    });
+  }
+
+  if (!task.kelas) return false;
+  const parts = task.kelas.split(/[,;/]+/).map((p) => p.trim().toLowerCase());
+  return parts.some((p) => p === sClass || p === 'semua kelas' || p === 'all');
+}
+
 export interface IndicatorScore {
   indicatorId: string;
   indicator: string;

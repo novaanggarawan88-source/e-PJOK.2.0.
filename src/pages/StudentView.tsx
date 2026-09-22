@@ -7,7 +7,7 @@ import { StudentHistory } from './student/StudentHistory';
 import { StudentProfile } from './student/StudentProfile';
 import { StudentQuiz } from './student/StudentQuiz';
 import { StudentMaterials } from './student/StudentMaterials';
-import { AssessmentTask, AssessmentRecord } from '../types';
+import { AssessmentTask, AssessmentRecord, isTaskAssignedToClass } from '../types';
 import { DatabaseService, subscribeToDataChanges } from '../services/db';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -47,9 +47,9 @@ export const StudentView: React.FC<StudentViewProps> = ({
       DatabaseService.getAssessments()
     ]);
 
-    const userClass = (user.kelas || 'XI 7').toLowerCase();
+    const userClass = user.kelas || 'XI 7';
     const relevantTasks = allTasks.filter(
-      (t) => t.kelas.toLowerCase() === userClass && t.status === 'aktif'
+      (t) => t.status === 'aktif' && isTaskAssignedToClass(t, userClass)
     );
     setTasks(relevantTasks);
 
@@ -93,7 +93,7 @@ export const StudentView: React.FC<StudentViewProps> = ({
   // If student is currently filling out an assessment form
   if (activeTaskForForm) {
     return (
-      <div className="min-h-[calc(100vh-5rem)] flex">
+      <div className="min-h-[calc(100vh-64px)] sm:min-h-[calc(100vh-76px)] flex">
         <StudentSidebar
           currentTab={currentTab}
           onSelectTab={(tab) => {
@@ -105,7 +105,9 @@ export const StudentView: React.FC<StudentViewProps> = ({
           onClose={onCloseSidebar}
           pendingTaskCount={pendingCount}
         />
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-4xl mx-auto w-full overflow-y-auto">
+        {/* Spacer for desktop fixed sidebar */}
+        <div className="hidden lg:block w-64 shrink-0" aria-hidden="true" />
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-4xl mx-auto w-full min-w-0">
           <StudentAssessmentForm
             task={activeTaskForForm}
             existingRecord={editingRecord}
@@ -118,8 +120,8 @@ export const StudentView: React.FC<StudentViewProps> = ({
   }
 
   return (
-    <div className="min-h-[calc(100vh-5rem)] flex relative">
-      {/* Student Sidebar for Desktop & Mobile Slide-in */}
+    <div className="min-h-[calc(100vh-64px)] sm:min-h-[calc(100vh-76px)] flex relative">
+      {/* Student Sidebar for Desktop & Mobile Slide-in (Locked & Fixed on Left) */}
       <StudentSidebar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
@@ -128,8 +130,11 @@ export const StudentView: React.FC<StudentViewProps> = ({
         pendingTaskCount={pendingCount}
       />
 
+      {/* Spacer for desktop fixed sidebar */}
+      <div className="hidden lg:block w-64 shrink-0" aria-hidden="true" />
+
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-y-auto w-full">
+      <div className="flex-1 flex flex-col w-full min-w-0">
         <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full pb-24 lg:pb-8">
           {currentTab === 'home' && (
             <StudentHome

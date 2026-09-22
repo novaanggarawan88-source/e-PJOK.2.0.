@@ -77,11 +77,12 @@ export const StudentAssessmentForm: React.FC<StudentAssessmentFormProps> = ({
       ]);
 
       // Filter classmates in same class, excluding current user
+      const targetRombel = (user?.kelas || task.kelas).toLowerCase();
       const peers = allUsers.filter(
         (u) =>
           u.role === 'murid' &&
           u.status === 'aktif' &&
-          u.kelas?.toLowerCase() === task.kelas.toLowerCase() &&
+          u.kelas?.toLowerCase() === targetRombel &&
           u.uid !== user?.uid &&
           u.nama.toLowerCase() !== user?.nama.toLowerCase()
       );
@@ -317,7 +318,7 @@ export const StudentAssessmentForm: React.FC<StudentAssessmentFormProps> = ({
       <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-900 dark:bg-emerald-950/80 dark:text-emerald-300">
-            Kelas {task.kelas}
+            Kelas {user?.kelas || task.kelas}
           </span>
           <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
             Materi: {task.materi}
@@ -364,7 +365,7 @@ export const StudentAssessmentForm: React.FC<StudentAssessmentFormProps> = ({
             required
             className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-800 dark:text-slate-100 focus:outline-hidden focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
           >
-            <option value="">-- Pilih Teman Sekelas ({task.kelas}) --</option>
+            <option value="">-- Pilih Teman Sekelas ({user?.kelas || task.kelas}) --</option>
             {classmates.map((c) => {
               const alreadyDone = alreadyEvaluatedIds.includes(c.uid);
               return (

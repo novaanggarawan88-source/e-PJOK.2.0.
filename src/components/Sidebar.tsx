@@ -108,15 +108,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      {/* Sidebar container */}
+      {/* Sidebar container - Terkunci (Fixed) di sisi kiri, tidak bergeser naik turun */}
       <aside
-        className={`fixed lg:sticky top-0 lg:top-20 z-40 h-screen lg:h-[calc(100vh-5rem)] w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-transform duration-300 ease-in-out shrink-0 ${
+        id="teacher-sidebar"
+        className={`fixed top-0 lg:top-[64px] sm:lg:top-[76px] bottom-0 left-0 z-40 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out shrink-0 select-none ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="p-3.5 flex flex-col h-full overflow-y-auto">
+        <div className="flex flex-col h-full overflow-hidden">
           {/* Mobile header with close button */}
-          <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100 dark:border-slate-800 lg:hidden">
+          <div className="shrink-0 flex items-center justify-between p-3.5 pb-3 border-b border-slate-100 dark:border-slate-800 lg:hidden">
             <span className="font-extrabold text-sm text-slate-800 dark:text-white font-heading">
               MENU UTAMA
             </span>
@@ -128,8 +129,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* Categorized Navigation Groups */}
-          <div className="space-y-4 py-1">
+          {/* Categorized Navigation Groups - Area menu yang scroll jika layar pendek */}
+          <div className="flex-1 overflow-y-auto p-3.5 space-y-4">
             {menuGroups.map((group, groupIdx) => (
               <div key={group.title} className="space-y-1">
                 <p className="px-3 text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">
@@ -166,12 +167,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </div>
 
-          {/* Bottom Section: Tombol Keluar di Paling Bawah */}
-          <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
+          {/* Bottom Section: Tombol Keluar Terkunci Paling Bawah (Tepat di bagian bawah sidebar) */}
+          <div className="shrink-0 p-3.5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 mt-auto">
             <button
               type="button"
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/50 rounded-xl transition-all cursor-pointer shadow-xs"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/50 rounded-xl transition-all cursor-pointer shadow-xs active:scale-[0.98]"
             >
               <LogOut className="w-4 h-4" />
               <span>Keluar Akun</span>

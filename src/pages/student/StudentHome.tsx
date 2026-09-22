@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { DatabaseService, subscribeToDataChanges } from '../../services/db';
-import { AssessmentTask, AssessmentRecord, QuizItem, MaterialItem } from '../../types';
+import { AssessmentTask, AssessmentRecord, QuizItem, MaterialItem, isTaskAssignedToClass } from '../../types';
 import { StudentTab } from '../../components/StudentNav';
 import {
   Sparkles,
@@ -43,10 +43,10 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
       DatabaseService.getMaterialsForClass(user.kelas || 'Semua Kelas')
     ]);
 
-    // Tasks for user's class
-    const userClass = (user.kelas || 'XI 7').toLowerCase();
+    // Tasks for user's class (supports multiple classes per task)
+    const userClass = user.kelas || 'XI 7';
     const relevantTasks = allTasks.filter(
-      (t) => t.kelas.toLowerCase() === userClass && t.status === 'aktif'
+      (t) => t.status === 'aktif' && isTaskAssignedToClass(t, userClass)
     );
     setTasks(relevantTasks);
     setQuizzes(allQuizzes);

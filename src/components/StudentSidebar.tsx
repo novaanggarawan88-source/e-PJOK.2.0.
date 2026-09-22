@@ -101,15 +101,16 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
         />
       )}
 
-      {/* Sidebar container */}
+      {/* Sidebar container - Terkunci (Fixed) di sisi kiri, tidak bergeser naik turun */}
       <aside
-        className={`fixed lg:sticky top-0 lg:top-20 z-40 h-screen lg:h-[calc(100vh-5rem)] w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-transform duration-300 ease-in-out shrink-0 ${
+        id="student-sidebar"
+        className={`fixed top-0 lg:top-[64px] sm:lg:top-[76px] bottom-0 left-0 z-40 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out shrink-0 select-none ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="p-4 flex flex-col h-full overflow-y-auto">
+        <div className="flex flex-col h-full overflow-hidden">
           {/* Mobile header with close button */}
-          <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100 dark:border-slate-800 lg:hidden">
+          <div className="shrink-0 flex items-center justify-between p-4 pb-3 border-b border-slate-100 dark:border-slate-800 lg:hidden">
             <span className="font-extrabold text-sm text-slate-800 dark:text-white font-heading">
               MENU SISWA PJOK
             </span>
@@ -122,8 +123,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
             </button>
           </div>
 
-          {/* Navigation Menu */}
-          <div className="space-y-1.5 py-1">
+          {/* Navigation Menu - Scrollable area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
             <p className="px-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
               Menu Pembelajaran
             </p>
@@ -174,8 +175,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
             })}
           </div>
 
-          {/* Bottom Section: Info Etika & AKUN & KELUAR PALING BAWAH */}
-          <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+          {/* Bottom Section: Info Etika & AKUN & KELUAR TERKUNCI PALING BAWAH */}
+          <div className="shrink-0 p-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900 mt-auto">
             {/* Student Profile Info Card at Bottom */}
             <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
@@ -201,7 +202,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
             <button
               type="button"
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2.5 px-3 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/50 rounded-xl transition-all cursor-pointer shadow-xs"
+              className="w-full flex items-center justify-center gap-2.5 px-3 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/50 rounded-xl transition-all cursor-pointer shadow-xs active:scale-[0.98]"
             >
               <LogOut className="w-4 h-4" />
               <span>Keluar Akun</span>

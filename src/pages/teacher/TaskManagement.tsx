@@ -38,6 +38,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
   const [nama, setNama] = useState('');
   const [materi, setMateri] = useState('');
   const [kelas, setKelas] = useState('');
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [tanggalMulai, setTanggalMulai] = useState('');
   const [batasWaktu, setBatasWaktu] = useState('');
   const [instruksi, setInstruksi] = useState('');
@@ -70,7 +71,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
     setEditingTask(null);
     setNama('Penilaian Antar Teman Passing Bola Basket');
     setMateri('Passing Bola Basket');
-    setKelas(classes[0]?.nama || 'XI 7');
+    const defaultCls = classes[0]?.nama || 'XI 7';
+    setSelectedClasses([defaultCls]);
+    setKelas(defaultCls);
     
     const today = new Date().toISOString().split('T')[0];
     const twoWeeksLater = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
@@ -96,7 +99,20 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
     setEditingTask(t);
     setNama(t.nama);
     setMateri(t.materi);
-    setKelas(t.kelas);
+
+    // Multi-class extraction
+    let targetList: string[] = [];
+    if (t.targetKelas && Array.isArray(t.targetKelas) && t.targetKelas.length > 0) {
+      targetList = [...t.targetKelas];
+    } else if (t.kelas) {
+      targetList = t.kelas.split(/[,;/]+/).map((k) => k.trim()).filter(Boolean);
+    }
+    if (targetList.length === 0 && classes[0]?.nama) {
+      targetList = [classes[0].nama];
+    }
+    setSelectedClasses(targetList);
+    setKelas(targetList.join(', '));
+
     setTanggalMulai(t.tanggalMulai);
     setBatasWaktu(t.batasWaktu);
     setInstruksi(t.instruksi);
@@ -108,6 +124,30 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
     setIzinkanEdit(t.izinkanEdit);
     setStatus(t.status);
     setIsModalOpen(true);
+  };
+
+  const handleToggleClass = (clsName: string) => {
+    setSelectedClasses((prev) => {
+      let next: string[];
+      if (prev.includes(clsName)) {
+        next = prev.filter((c) => c !== clsName);
+      } else {
+        next = [...prev, clsName];
+      }
+      setKelas(next.join(', '));
+      return next;
+    });
+  };
+
+  const handleSelectAllClasses = () => {
+    if (selectedClasses.length === classes.length) {
+      setSelectedClasses([]);
+      setKelas('');
+    } else {
+      const all = classes.map((c) => c.nama);
+      setSelectedClasses(all);
+      setKelas(all.join(', '));
+    }
   };
 
   const handleToggleIndicator = (id: string) => {
@@ -128,8 +168,13 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nama.trim() || !materi.trim() || !kelas.trim()) {
-      alert('Mohon lengkapi Nama Tugas, Materi, dan Kelas.');
+    if (!nama.trim() || !materi.trim()) {
+      alert('Mohon lengkapi Nama Tugas dan Materi.');
+      return;
+    }
+
+    if (selectedClasses.length === 0) {
+      alert('Mohon pilih minimal 1 kelas target penilaian untuk tugas ini.');
       return;
     }
 
@@ -138,11 +183,14 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
       return;
     }
 
+    const primaryKelas = selectedClasses.join(', ');
+
     const taskData: AssessmentTask = {
       id: editingTask ? editingTask.id : `task-${Date.now()}`,
       nama: nama.trim(),
       materi: materi.trim(),
-      kelas,
+      kelas: primaryKelas,
+      targetKelas: selectedClasses,
       tanggalMulai,
       batasWaktu,
       instruksi: instruksi.trim(),
@@ -242,9 +290,20 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
             >
               <div className="space-y-2.5 max-w-3xl">
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="px-3 py-1 rounded-lg text-xs font-black bg-blue-100 text-blue-900">
-                    Kelas {task.kelas}
-                  </span>
+                  {/* Class badges */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {(task.targetKelas && Array.isArray(task.targetKelas) && task.targetKelas.length > 0
+                      ? task.targetKelas
+                      : task.kelas.split(/[,;/]+/).map((k) => k.trim()).filter(Boolean)
+                    ).map((k, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-lg text-xs font-black bg-blue-100 text-blue-900 border border-blue-200"
+                      >
+                        Kelas {k}
+                      </span>
+                    ))}
+                  </div>
                   <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700">
                     Materi: {task.materi}
                   </span>
@@ -380,21 +439,64 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ onNavigateIndica
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Ditugaskan ke Kelas *
-                  </label>
-                  <select
-                    value={kelas}
-                    onChange={(e) => setKelas(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:bg-white focus:border-blue-500 font-bold"
-                  >
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.nama}>
-                        Kelas {c.nama}
-                      </option>
-                    ))}
-                  </select>
+                <div className="md:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Ditugaskan ke Kelas * (Bisa Pilih Lebih Dari 1 Kelas)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                        {selectedClasses.length} Kelas Dipilih
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllClasses}
+                        className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                      >
+                        {selectedClasses.length === classes.length ? 'Batal Semua' : 'Pilih Semua Kelas'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 mb-2">
+                    Klik kelas untuk memilih satu atau beberapa rombel yang wajib mengerjakan tugas ini:
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    {classes.map((c) => {
+                      const isSelected = selectedClasses.includes(c.nama);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => handleToggleClass(c.nama)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
+                            isSelected
+                              ? 'bg-blue-600 text-white shadow-xs scale-[1.02]'
+                              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] shrink-0 transition-colors ${
+                              isSelected ? 'bg-white text-blue-600' : 'border border-slate-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <span>Kelas {c.nama}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedClasses.length > 0 && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600">
+                      <span className="font-semibold text-slate-500">Target rombel:</span>
+                      <span className="font-bold text-blue-700">
+                        {selectedClasses.map((k) => `Kelas ${k}`).join(', ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
