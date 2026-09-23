@@ -4,6 +4,7 @@ export interface UserProfile {
   uid: string;
   nama: string;
   email: string;
+  username?: string;
   password?: string;
   nip?: string;
   role: UserRole;
@@ -13,6 +14,7 @@ export interface UserProfile {
   fotoProfil?: string;
   status: 'aktif' | 'nonaktif';
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AppConfig {

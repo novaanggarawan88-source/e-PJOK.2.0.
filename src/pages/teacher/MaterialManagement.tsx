@@ -51,13 +51,20 @@ export const formatEmbedUrl = (rawUrl: string): string => {
   const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
   const match = url.match(ytRegex);
   if (match && match[1]) {
-    return `https://www.youtube.com/embed/${match[1]}?autoplay=1&rel=0`;
+    return `https://www.youtube-nocookie.com/embed/${match[1]}?autoplay=1&rel=0`;
   }
 
-  // Google Drive preview
-  if (url.includes('drive.google.com') && url.includes('/view')) {
-    return url.replace('/view', '/preview');
+  // Google Drive preview (supports /file/d/ID/..., ?id=ID, open?id=ID)
+  if (url.includes('drive.google.com')) {
+    const driveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) {
+      return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    }
+    if (url.includes('/view')) {
+      return url.replace('/view', '/preview');
+    }
   }
+
   // Google Docs / Slides
   if (url.includes('docs.google.com/presentation') && !url.includes('/embed')) {
     return url.replace(/\/pub|\/edit.*$/, '/embed');

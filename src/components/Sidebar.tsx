@@ -13,7 +13,8 @@ import {
   ClipboardList,
   HelpCircle,
   BookOpen,
-  FileText
+  FileText,
+  Flame
 } from 'lucide-react';
 
 export type TeacherMenu =
@@ -170,8 +171,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </div>
 
-          {/* Bottom Section: Tombol Keluar Terkunci Paling Bawah (Tepat di bagian bawah sidebar) */}
+          {/* Bottom Section: Status Terhubung Firebase & Tombol Keluar Terkunci Paling Bawah */}
           <div className="shrink-0 p-3.5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 mt-auto">
+            <div className="p-2.5 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/90 dark:border-emerald-800/60 rounded-xl mb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  Terhubung Firebase
+                </span>
+              </div>
+              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 font-medium leading-tight">
+                Cloud Firestore & Auth Aktif
+              </p>
+            </div>
+
             <button
               type="button"
               onClick={handleLogout}

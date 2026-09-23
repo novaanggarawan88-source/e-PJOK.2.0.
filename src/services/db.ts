@@ -165,8 +165,24 @@ export const initRealtimeCloudSync = () => {
       (snap) => {
         if (!snap.empty) {
           const cloudUsers = snap.docs.map((d) => d.data() as UserProfile);
+          const local = getStored<UserProfile>(LS_USERS, []);
+          const map = new Map<string, UserProfile>();
+          cloudUsers.forEach((u) => map.set(u.uid, u));
+          local.forEach((lu) => {
+            const cu = map.get(lu.uid);
+            if (!cu) {
+              map.set(lu.uid, lu);
+            } else {
+              const localT = lu.updatedAt || lu.createdAt || '1970-01-01';
+              const cloudT = cu.updatedAt || cu.createdAt || '1970-01-01';
+              if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
+                map.set(lu.uid, lu);
+              }
+            }
+          });
+          const merged = Array.from(map.values());
           try {
-            localStorage.setItem(LS_USERS, JSON.stringify(cloudUsers));
+            localStorage.setItem(LS_USERS, JSON.stringify(merged));
           } catch {}
           notifySubscribers();
         }
@@ -397,37 +413,98 @@ const setStored = <T>(key: string, data: T[]) => {
 export const DatabaseService = {
   // --- USERS / PENGGUNA ---
   async getUsers(): Promise<UserProfile[]> {
+    const localUsers = getStored<UserProfile>(LS_USERS, []);
     if (isFirebaseConfigured() && db) {
       try {
-        const snapPengguna = await getDocs(collection(db, 'pengguna'));
-        if (!snapPengguna.empty) {
-          const cloudUsers = snapPengguna.docs.map((d) => d.data() as UserProfile);
-          try {
-            localStorage.setItem(LS_USERS, JSON.stringify(cloudUsers));
-          } catch {}
-          return cloudUsers;
+        const [snapPengguna, snapUsers] = await Promise.all([
+          getDocs(collection(db, 'pengguna')).catch(() => null),
+          getDocs(collection(db, 'users')).catch(() => null)
+        ]);
+
+        const cloudMap = new Map<string, UserProfile>();
+
+        // 1. Baca data dari cloud (pengguna & users)
+        if (snapUsers && !snapUsers.empty) {
+          for (const d of snapUsers.docs) {
+            const u = d.data() as UserProfile;
+            if (u && u.uid) cloudMap.set(u.uid, u);
+          }
+        }
+        if (snapPengguna && !snapPengguna.empty) {
+          for (const d of snapPengguna.docs) {
+            const u = d.data() as UserProfile;
+            if (u && u.uid) {
+              const prev = cloudMap.get(u.uid);
+              if (!prev) {
+                cloudMap.set(u.uid, u);
+              } else {
+                const timeU = u.updatedAt || u.createdAt || '1970-01-01';
+                const timePrev = prev.updatedAt || prev.createdAt || '1970-01-01';
+                if (new Date(timeU).getTime() >= new Date(timePrev).getTime()) {
+                  cloudMap.set(u.uid, { ...prev, ...u });
+                } else {
+                  cloudMap.set(u.uid, { ...u, ...prev });
+                }
+              }
+            }
+          }
         }
 
-        const snap = await getDocs(collection(db, 'users'));
-        if (!snap.empty) {
-          const cloudUsers = snap.docs.map((d) => d.data() as UserProfile);
-          try {
-            localStorage.setItem(LS_USERS, JSON.stringify(cloudUsers));
-          } catch {}
-          return cloudUsers;
+        // Jika baik di cloud maupun lokal belum ada pengguna sama sekali, seed INITIAL_USERS satu kali saja
+        if (cloudMap.size === 0 && localUsers.length === 0) {
+          const seeded: UserProfile[] = [];
+          for (const u of INITIAL_USERS) {
+            const withTime: UserProfile = {
+              ...u,
+              updatedAt: u.createdAt || new Date().toISOString()
+            };
+            seeded.push(withTime);
+            await Promise.all([
+              setDoc(doc(db, 'pengguna', u.uid), withTime, { merge: true }),
+              setDoc(doc(db, 'users', u.uid), withTime, { merge: true })
+            ]).catch(() => {});
+          }
+          setStored(LS_USERS, seeded);
+          return seeded;
         }
 
-        // Jika Firestore masih kosong, unggah data pengguna lokal/awal ke cloud
-        const localUsers = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
-        for (const u of localUsers) {
-          await setDoc(doc(db, 'pengguna', u.uid), u, { merge: true });
+        // 2. Gabungkan dengan data lokal secara presisi berbasis timestamp
+        const finalMap = new Map<string, UserProfile>(cloudMap);
+
+        for (const lu of localUsers) {
+          const cu = finalMap.get(lu.uid);
+          if (!cu) {
+            // Pengguna baru di lokal, simpan ke map & push ke cloud
+            finalMap.set(lu.uid, lu);
+            setDoc(doc(db, 'pengguna', lu.uid), lu, { merge: true }).catch(() => {});
+            setDoc(doc(db, 'users', lu.uid), lu, { merge: true }).catch(() => {});
+          } else {
+            // Keduanya ada: prioritaskan yang memiliki waktu pembaruan lebih baru!
+            const localTime = lu.updatedAt || lu.createdAt || '1970-01-01';
+            const cloudTime = cu.updatedAt || cu.createdAt || '1970-01-01';
+            if (new Date(localTime).getTime() > new Date(cloudTime).getTime()) {
+              finalMap.set(lu.uid, lu);
+              setDoc(doc(db, 'pengguna', lu.uid), lu, { merge: true }).catch(() => {});
+              setDoc(doc(db, 'users', lu.uid), lu, { merge: true }).catch(() => {});
+            }
+          }
         }
-        return localUsers;
+
+        const mergedUsers = Array.from(finalMap.values());
+        try {
+          localStorage.setItem(LS_USERS, JSON.stringify(mergedUsers));
+        } catch {}
+        return mergedUsers;
       } catch (err) {
         console.warn('Firestore getUsers failed, falling back to local:', err);
       }
     }
-    return getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+
+    if (localUsers.length === 0) {
+      setStored(LS_USERS, INITIAL_USERS);
+      return INITIAL_USERS;
+    }
+    return localUsers;
   },
 
   async getUser(uid: string): Promise<UserProfile | null> {
@@ -450,24 +527,29 @@ export const DatabaseService = {
   },
 
   async saveUser(user: UserProfile): Promise<void> {
+    const userWithTime: UserProfile = {
+      ...user,
+      updatedAt: new Date().toISOString()
+    };
     if (isFirebaseConfigured() && db) {
       try {
         await Promise.all([
-          setDoc(doc(db, 'pengguna', user.uid), user, { merge: true }),
-          setDoc(doc(db, 'users', user.uid), user, { merge: true })
+          setDoc(doc(db, 'pengguna', user.uid), userWithTime, { merge: true }),
+          setDoc(doc(db, 'users', user.uid), userWithTime, { merge: true })
         ]);
       } catch (err) {
         console.warn('Firestore saveUser error:', err);
       }
     }
-    const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+    const all = getStored<UserProfile>(LS_USERS, []);
     const idx = all.findIndex((u) => u.uid === user.uid);
     if (idx >= 0) {
-      all[idx] = { ...all[idx], ...user };
+      all[idx] = userWithTime;
     } else {
-      all.push(user);
+      all.push(userWithTime);
     }
     setStored(LS_USERS, all);
+    notifySubscribers();
   },
 
   async deleteUser(uid: string): Promise<void> {
@@ -481,9 +563,10 @@ export const DatabaseService = {
         console.warn('Firestore deleteUser error:', err);
       }
     }
-    const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+    const all = getStored<UserProfile>(LS_USERS, []);
     const filtered = all.filter((u) => u.uid !== uid);
     setStored(LS_USERS, filtered);
+    notifySubscribers();
   },
 
   async deleteUsers(uids: string[]): Promise<void> {
@@ -501,9 +584,10 @@ export const DatabaseService = {
         console.warn('Firestore deleteUsers error:', err);
       }
     }
-    const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+    const all = getStored<UserProfile>(LS_USERS, []);
     const filtered = all.filter((u) => !uidSet.has(u.uid));
     setStored(LS_USERS, filtered);
+    notifySubscribers();
   },
 
   // --- CLASSES ---
@@ -696,31 +780,41 @@ export const DatabaseService = {
 
   // --- ASSESSMENTS ---
   async getAssessments(): Promise<AssessmentRecord[]> {
+    const localAssessments = getStored<AssessmentRecord>(LS_ASSESSMENTS, INITIAL_ASSESSMENTS);
     if (isFirebaseConfigured() && db) {
       try {
         const snap = await getDocs(collection(db, 'assessments'));
         if (!snap.empty) {
           const cloudAssessments = snap.docs.map((d) => d.data() as AssessmentRecord);
+          // Gabungkan data cloud dan data lokal agar tidak ada riwayat penilaian yang tertimpa
+          const map = new Map<string, AssessmentRecord>();
+          for (const a of localAssessments) {
+            map.set(a.id, a);
+          }
+          for (const a of cloudAssessments) {
+            map.set(a.id, a);
+          }
+          const merged = Array.from(map.values());
           try {
-            localStorage.setItem(LS_ASSESSMENTS, JSON.stringify(cloudAssessments));
+            localStorage.setItem(LS_ASSESSMENTS, JSON.stringify(merged));
           } catch {}
-          return cloudAssessments;
+          return merged;
         }
       } catch (err) {
         console.warn('Firestore getAssessments failed:', err);
       }
     }
-    return getStored<AssessmentRecord>(LS_ASSESSMENTS, INITIAL_ASSESSMENTS);
+    return localAssessments;
   },
 
   async getAssessmentsByAssessor(assessorId: string): Promise<AssessmentRecord[]> {
     const all = await this.getAssessments();
-    return all.filter((a) => a.assessorId === assessorId);
+    return all.filter((a) => a.assessorId === assessorId || a.assessorUserId === assessorId);
   },
 
   async getAssessmentsForTarget(targetId: string): Promise<AssessmentRecord[]> {
     const all = await this.getAssessments();
-    return all.filter((a) => a.targetId === targetId);
+    return all.filter((a) => a.targetId === targetId || a.targetUserId === targetId);
   },
 
   async checkExistingAssessment(
@@ -733,8 +827,8 @@ export const DatabaseService = {
       all.find(
         (a) =>
           a.taskId === taskId &&
-          a.assessorId === assessorId &&
-          a.targetId === targetId
+          (a.assessorId === assessorId || a.assessorUserId === assessorId) &&
+          (a.targetId === targetId || a.targetUserId === targetId)
       ) || null
     );
   },
@@ -767,6 +861,52 @@ export const DatabaseService = {
       all.push(recordToSave);
     }
     setStored(LS_ASSESSMENTS, all);
+    notifySubscribers();
+  },
+
+  async deleteAssessment(id: string): Promise<void> {
+    if (isFirebaseConfigured() && db) {
+      try {
+        await deleteDoc(doc(db, 'assessments', id));
+      } catch (err) {
+        console.warn('Firestore deleteAssessment error:', err);
+      }
+    }
+    const all = getStored<AssessmentRecord>(LS_ASSESSMENTS, INITIAL_ASSESSMENTS);
+    const target = all.find((a) => a.id === id);
+    if (target && target.evidenceUrl && target.evidenceUrl.startsWith('idb://')) {
+      const mediaId = target.evidenceUrl.replace('idb://', '');
+      try {
+        await MediaStore.deleteMedia(mediaId);
+      } catch {}
+    }
+    const filtered = all.filter((a) => a.id !== id);
+    setStored(LS_ASSESSMENTS, filtered);
+    notifySubscribers();
+  },
+
+  async deleteAssessments(ids: string[]): Promise<void> {
+    if (!ids || ids.length === 0) return;
+    if (isFirebaseConfigured() && db) {
+      const firestore = db;
+      try {
+        await Promise.all(ids.map((id) => deleteDoc(doc(firestore, 'assessments', id))));
+      } catch (err) {
+        console.warn('Firestore deleteAssessments error:', err);
+      }
+    }
+    const idSet = new Set(ids);
+    const all = getStored<AssessmentRecord>(LS_ASSESSMENTS, INITIAL_ASSESSMENTS);
+    for (const a of all) {
+      if (idSet.has(a.id) && a.evidenceUrl && a.evidenceUrl.startsWith('idb://')) {
+        const mediaId = a.evidenceUrl.replace('idb://', '');
+        try {
+          await MediaStore.deleteMedia(mediaId);
+        } catch {}
+      }
+    }
+    const filtered = all.filter((a) => !idSet.has(a.id));
+    setStored(LS_ASSESSMENTS, filtered);
     notifySubscribers();
   },
 
@@ -1371,11 +1511,21 @@ export const DatabaseService = {
       const currentConfig = await this.getAppConfig();
       await setDoc(doc(db, 'settings', 'app_config'), currentConfig, { merge: true });
 
-      // 2. Sinkronkan Pengguna / Murid & Guru
-      const localUsers = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+      // 2. Sinkronkan Pengguna / Murid & Guru (ke koleksi pengguna & users)
+      const localUsers = getStored<UserProfile>(LS_USERS, []);
       for (const u of localUsers) {
-        await setDoc(doc(db, 'pengguna', u.uid), u, { merge: true });
+        const uWithTime: UserProfile = {
+          ...u,
+          updatedAt: u.updatedAt || u.createdAt || new Date().toISOString()
+        };
+        await Promise.all([
+          setDoc(doc(db, 'pengguna', u.uid), uWithTime, { merge: true }),
+          setDoc(doc(db, 'users', u.uid), uWithTime, { merge: true })
+        ]);
       }
+
+      // Pastikan state lokal tersegarkan dengan data cloud
+      await this.getUsers();
 
       // 3. Sinkronkan Kelas
       const localClasses = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
@@ -1436,10 +1586,19 @@ export const DatabaseService = {
   async seedPenggunaToFirestoreIfEmpty(): Promise<void> {
     if (!isFirebaseConfigured() || !db) return;
     try {
-      const snap = await getDocs(collection(db, 'pengguna'));
-      if (snap.empty) {
+      const snapPengguna = await getDocs(collection(db, 'pengguna')).catch(() => null);
+      // HANYA seed pengguna jika koleksi pengguna di Firestore benar-benar KOSONG!
+      // Jika sudah ada data akun guru atau murid, JANGAN pernah timpa lagi agar data username tidak berubah!
+      if (!snapPengguna || snapPengguna.empty) {
         for (const user of INITIAL_USERS) {
-          await setDoc(doc(db, 'pengguna', user.uid), user, { merge: true });
+          const userWithTime: UserProfile = {
+            ...user,
+            updatedAt: user.createdAt || new Date().toISOString()
+          };
+          await Promise.all([
+            setDoc(doc(db, 'pengguna', user.uid), userWithTime, { merge: true }),
+            setDoc(doc(db, 'users', user.uid), userWithTime, { merge: true })
+          ]);
         }
       }
       // Pastikan app_config juga ada di Firestore

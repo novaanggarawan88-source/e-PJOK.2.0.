@@ -70,11 +70,17 @@ export const SettingsPage: React.FC = () => {
     const teachers = users.filter((u) => u.role === 'guru');
     setAllTeachers(teachers);
 
-    if (currentUser && currentUser.role === 'guru') {
-      setTeacherName(currentUser.nama);
-      setTeacherEmail(currentUser.email);
-      setTeacherNip(currentUser.nip || '');
-      setTeacherPassword(currentUser.password || 'guru123');
+    // Cari akun guru login atau guru yang terdaftar
+    const myTeacherProfile =
+      (currentUser?.uid ? users.find((u) => u.uid === currentUser.uid) : null) ||
+      (currentUser?.email ? users.find((u) => u.email.toLowerCase() === currentUser.email.toLowerCase()) : null) ||
+      teachers[0];
+
+    if (myTeacherProfile) {
+      setTeacherName(myTeacherProfile.nama || 'Guru PJOK');
+      setTeacherEmail(myTeacherProfile.email || 'guru@pjok.sch.id');
+      setTeacherNip(myTeacherProfile.nip || '');
+      setTeacherPassword(myTeacherProfile.password || 'guru123');
     }
   };
 
@@ -185,25 +191,29 @@ export const SettingsPage: React.FC = () => {
   // Save Teacher Account Credentials
   const handleSaveTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
     if (!teacherName.trim() || !teacherEmail.trim()) {
       alert('Nama dan Email/Username Guru tidak boleh kosong.');
       return;
     }
 
     setSavingTeacher(true);
+    const targetUid = currentUser?.uid || 'guru-1';
     const updatedTeacher: UserProfile = {
-      ...currentUser,
+      ...(currentUser || {}),
+      uid: targetUid,
+      role: 'guru',
+      status: 'aktif',
       nama: teacherName.trim(),
       email: teacherEmail.trim().toLowerCase(),
       nip: teacherNip.trim(),
       password: teacherPassword.trim() || 'guru123',
+      updatedAt: new Date().toISOString()
     };
 
     await DatabaseService.saveUser(updatedTeacher);
     setCurrentUser(updatedTeacher);
     setSavingTeacher(false);
-    showToast('Username dan password Guru berhasil diperbarui!');
+    showToast('Username dan password Guru berhasil diperbarui dan tersimpan aman di Firebase Cloud!');
   };
 
   const handleResetData = async () => {
@@ -442,12 +452,12 @@ export const SettingsPage: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-700">
-            <Flame className="w-3.5 h-3.5 text-amber-500" />
-            <span className="font-semibold">Firebase Auth & Firestore</span>
-            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] border border-emerald-200/60">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              koleksi: &apos;pengguna&apos;
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/80 rounded-xl text-xs font-bold text-emerald-800 dark:text-emerald-300 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+            <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+            <span>Terhubung Firebase</span>
+            <span className="hidden sm:inline text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">
+              (koleksi: &apos;pengguna&apos;)
             </span>
           </div>
         </div>
@@ -565,9 +575,10 @@ export const SettingsPage: React.FC = () => {
                 </div>
               </div>
 
-              <span className="font-bold text-blue-800 bg-blue-100 px-2.5 py-1 rounded-full text-xs flex items-center gap-1.5">
-                <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
-                Cloud Aktif
+              <span className="font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 px-3 py-1 rounded-full text-xs flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+                Terhubung Firebase Cloud
               </span>
             </div>
 

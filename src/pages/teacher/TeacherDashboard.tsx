@@ -88,28 +88,30 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Firebase Auth & Firestore Status (Tampil di Akun Guru) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3.5 bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-white dark:from-emerald-950/40 dark:via-teal-950/20 dark:to-slate-900 border border-emerald-200/90 dark:border-emerald-800/60 rounded-2xl shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-            <Flame className="w-4 h-4 text-amber-500" />
+          <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center shrink-0 shadow-2xs">
+            <Flame className="w-5 h-5 text-amber-500 fill-amber-500" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-800">Firebase Auth & Firestore</span>
-              <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] border border-emerald-200/60">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                koleksi: &apos;pengguna&apos;
+              <span className="text-xs sm:text-sm font-extrabold text-emerald-950 dark:text-emerald-200">
+                Terhubung Firebase Cloud
+              </span>
+              <span className="inline-flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/60 px-2.5 py-0.5 rounded-full text-[10px] border border-emerald-300 dark:border-emerald-700">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Firestore & Auth Aktif
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">
-              Sinkronisasi basis data cloud aktif untuk akun Guru PJOK & penilaian formatif antar teman
+            <p className="text-[11px] sm:text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
+              Basis data cloud terpusat: Akun Guru, Murid, Kelas, Tugas & Penilaian tersinkronisasi aman multi-perangkat (Laptop & HP).
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-100">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-            Akun Guru Terverifikasi
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-700 shadow-2xs">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Akun Guru Terverifikasi Cloud
           </span>
         </div>
       </div>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { DatabaseService, subscribeToDataChanges } from '../../services/db';
 import { UserProfile, LearningTaskItem, LearningTaskSubmission } from '../../types';
+import { EvidenceViewer } from '../../components/EvidenceViewer';
+import { MediaStore } from '../../lib/mediaStore';
 import {
   FileText,
   CheckCircle2,
@@ -433,16 +435,42 @@ export const StudentLearningTasks: React.FC<StudentLearningTasksProps> = ({ user
                     </div>
                   )}
                   {selectedTask.lampiranUrl && (
-                    <div className="pt-2">
-                      <a
-                        href={selectedTask.lampiranUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Buka Lampiran Guru: {selectedTask.lampiranNama || 'Dokumen Tugas'}</span>
-                      </a>
+                    <div className="pt-2 space-y-2 border-t border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800 text-xs">
+                          {selectedTask.lampiranNama || 'Lampiran Materi / Video Pembelajaran Guru:'}
+                        </span>
+                        <a
+                          href={selectedTask.lampiranUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline font-bold"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Buka Tab Baru</span>
+                        </a>
+                      </div>
+                      {(MediaStore.isExternalVideoLink(selectedTask.lampiranUrl) ||
+                        selectedTask.lampiranUrl.endsWith('.mp4') ||
+                        selectedTask.lampiranUrl.includes('video')) ? (
+                        <div className="rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-950 p-1">
+                          <EvidenceViewer
+                            evidenceUrl={selectedTask.lampiranUrl}
+                            evidenceType="video"
+                            autoPlay={false}
+                          />
+                        </div>
+                      ) : (
+                        <a
+                          href={selectedTask.lampiranUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Buka Berkas Guru: {selectedTask.lampiranNama || 'Dokumen Tugas'}</span>
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>
@@ -545,6 +573,20 @@ export const StudentLearningTasks: React.FC<StudentLearningTasksProps> = ({ user
                       />
                       <ExternalLink className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                     </div>
+                    {linkLampiran.trim() && (
+                      <div className="mt-2.5 space-y-1.5">
+                        <span className="text-[11px] font-semibold text-slate-600 block">
+                          Pratinjau Tautan Lampiran Tugas:
+                        </span>
+                        <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 p-1">
+                          <EvidenceViewer
+                            evidenceUrl={linkLampiran.trim()}
+                            evidenceType={MediaStore.isExternalVideoLink(linkLampiran) ? 'video' : undefined}
+                            autoPlay={false}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <p className="text-[11px] text-slate-400 mt-1">
                       💡 Pastikan akses tautan Google Drive / Docs diatur ke "Siapa saja dengan tautan dapat melihat" agar guru dapat memeriksa tugas Anda.
                     </p>

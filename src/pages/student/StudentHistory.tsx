@@ -15,7 +15,8 @@ import {
   Eye,
   X,
   MessageSquareQuote,
-  Star
+  Star,
+  Trash2
 } from 'lucide-react';
 
 interface StudentHistoryProps {
@@ -83,6 +84,23 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ onEditAssessment
     };
     await DatabaseService.saveAssessment(updated);
     setSelectedRecord(updated);
+  };
+
+  const handleDeleteAssessment = async (record: AssessmentRecord) => {
+    const confirmMsg = `Hapus penilaian yang kamu berikan untuk "${record.targetName}"?\n\nSetelah dihapus, kamu dapat mengisi ulang kembali penilaian untuk tugas/teman ini.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await DatabaseService.deleteAssessment(record.id);
+      setAssessmentsGiven((prev) => prev.filter((a) => a.id !== record.id));
+      if (selectedRecord?.id === record.id) {
+        setSelectedRecord(null);
+      }
+      alert(`Penilaian untuk "${record.targetName}" berhasil dihapus!\nKamu sekarang dapat mengisi ulang penilaian kembali.`);
+    } catch (err) {
+      console.error('Gagal menghapus penilaian:', err);
+      alert('Terjadi kesalahan saat menghapus penilaian.');
+    }
   };
 
   return (
@@ -277,6 +295,15 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ onEditAssessment
                         <Eye className="w-3.5 h-3.5" />
                         <span>Rincian</span>
                       </button>
+
+                      <button
+                        onClick={() => handleDeleteAssessment(item)}
+                        className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Hapus penilaian ini agar kamu dapat mengisi ulang kembali"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Hapus</span>
+                      </button>
                     </div>
                   </div>
 
@@ -373,11 +400,21 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ onEditAssessment
                 </div>
               )}
 
-              <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                {(activeTab === 'given' || selectedRecord.assessorUserId === user?.uid) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteAssessment(selectedRecord)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus & Izinkan Isi Ulang</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setSelectedRecord(null)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+                  className="ml-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   Tutup
                 </button>

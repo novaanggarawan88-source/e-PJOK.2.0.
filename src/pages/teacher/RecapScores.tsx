@@ -10,7 +10,10 @@ import {
   CheckCircle,
   Eye,
   Award,
-  BookOpen
+  BookOpen,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 interface StudentRecapRow {
@@ -24,6 +27,17 @@ interface StudentRecapRow {
   feedbacks: string[];
 }
 
+export type RecapSortKey =
+  | 'nama'
+  | 'nis'
+  | 'kelas'
+  | 'nomorAbsen'
+  | 'assessorCount'
+  | 'averageScore4'
+  | 'finalScore100'
+  | 'predicate'
+  | 'status';
+
 export const RecapScores: React.FC = () => {
   const [students, setStudents] = useState<UserProfile[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -34,6 +48,23 @@ export const RecapScores: React.FC = () => {
   const [selectedClass, setSelectedClass] = useState('Semua');
   const [selectedTaskId, setSelectedTaskId] = useState('Semua');
   const [searchName, setSearchName] = useState('');
+
+  // Sorting
+  const [sortKey, setSortKey] = useState<RecapSortKey>('nama');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (key: RecapSortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      if (key === 'averageScore4' || key === 'finalScore100' || key === 'assessorCount') {
+        setSortDirection('desc');
+      } else {
+        setSortDirection('asc');
+      }
+    }
+  };
 
   const loadData = async () => {
     const [u, c, t, a] = await Promise.all([
@@ -119,13 +150,39 @@ export const RecapScores: React.FC = () => {
       };
     });
 
+  const sortedRecapData = [...recapData].sort((a, b) => {
+    let comparison = 0;
+    if (sortKey === 'nama') {
+      comparison = a.student.nama.localeCompare(b.student.nama, 'id', { sensitivity: 'base' });
+    } else if (sortKey === 'nis') {
+      comparison = (a.student.nis || '').localeCompare(b.student.nis || '', 'id', { numeric: true });
+    } else if (sortKey === 'kelas') {
+      comparison = (a.student.kelas || '').localeCompare(b.student.kelas || '', 'id', { numeric: true });
+    } else if (sortKey === 'nomorAbsen') {
+      const numA = parseInt(a.student.nomorAbsen || '0', 10);
+      const numB = parseInt(b.student.nomorAbsen || '0', 10);
+      comparison = numA - numB;
+    } else if (sortKey === 'assessorCount') {
+      comparison = a.assessorCount - b.assessorCount;
+    } else if (sortKey === 'averageScore4') {
+      comparison = a.averageScore4 - b.averageScore4;
+    } else if (sortKey === 'finalScore100') {
+      comparison = a.finalScore100 - b.finalScore100;
+    } else if (sortKey === 'predicate') {
+      comparison = a.predicate.localeCompare(b.predicate, 'id');
+    } else if (sortKey === 'status') {
+      comparison = a.status.localeCompare(b.status, 'id');
+    }
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
+
   const handlePrint = () => {
     window.print();
   };
 
   const handleExportCSV = () => {
     let csv = 'NO,NIS,NAMA MURID,KELAS,NO ABSEN,JUMLAH PENILAI,RATA-RATA SKOR (1-4),NILAI AKHIR (100),PREDIKAT,HURUF,STATUS\n';
-    recapData.forEach((row, i) => {
+    sortedRecapData.forEach((row, i) => {
       csv += `"${i + 1}","${row.student.nis || ''}","${row.student.nama}","${row.student.kelas || ''}","${row.student.nomorAbsen || ''}","${row.assessorCount}","${row.averageScore4}","${row.finalScore100}","${row.predicate}","${row.gradeLetter}","${row.status}"\n`;
     });
 
@@ -180,8 +237,8 @@ export const RecapScores: React.FC = () => {
       </div>
 
       {/* Filter Toolbar (Section 22) */}
-      <div className="print:hidden bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center gap-3">
-        <div className="w-full sm:w-56">
+      <div className="print:hidden bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
           <label className="block text-[11px] font-bold text-slate-500 mb-1">Pilih Kelas</label>
           <select
             value={selectedClass}
@@ -197,7 +254,7 @@ export const RecapScores: React.FC = () => {
           </select>
         </div>
 
-        <div className="w-full sm:w-72">
+        <div>
           <label className="block text-[11px] font-bold text-slate-500 mb-1">Tugas Penilaian</label>
           <select
             value={selectedTaskId}
@@ -213,7 +270,7 @@ export const RecapScores: React.FC = () => {
           </select>
         </div>
 
-        <div className="w-full sm:flex-1">
+        <div>
           <label className="block text-[11px] font-bold text-slate-500 mb-1">Cari Murid</label>
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -225,6 +282,33 @@ export const RecapScores: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-blue-500"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-bold text-slate-500 mb-1">Urutkan / Sort</label>
+          <select
+            value={`${sortKey}_${sortDirection}`}
+            onChange={(e) => {
+              const parts = e.target.value.split('_');
+              const k = parts[0] as RecapSortKey;
+              const d = parts[1] as 'asc' | 'desc';
+              setSortKey(k);
+              setSortDirection(d);
+            }}
+            className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-900 font-semibold focus:outline-hidden focus:border-blue-500"
+          >
+            <option value="nama_asc">Nama Murid (A - Z)</option>
+            <option value="nama_desc">Nama Murid (Z - A)</option>
+            <option value="finalScore100_desc">Nilai Akhir (Tertinggi)</option>
+            <option value="finalScore100_asc">Nilai Akhir (Terendah)</option>
+            <option value="averageScore4_desc">Skor 1-4 (Tertinggi)</option>
+            <option value="averageScore4_asc">Skor 1-4 (Terendah)</option>
+            <option value="kelas_asc">Kelas (A - Z)</option>
+            <option value="nomorAbsen_asc">Nomor Absen (1 - 40)</option>
+            <option value="nis_asc">NIS (Terkecil - Terbesar)</option>
+            <option value="assessorCount_desc">Jumlah Penilai (Terbanyak)</option>
+            <option value="status_asc">Status (Lengkap Dulu)</option>
+          </select>
         </div>
       </div>
 
@@ -256,27 +340,195 @@ export const RecapScores: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider print:bg-gray-100 print:text-black">
+              <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none print:bg-gray-100 print:text-black">
                 <th className="py-3.5 px-3 w-10 text-center">NO</th>
-                <th className="py-3.5 px-3">NIS</th>
-                <th className="py-3.5 px-4">NAMA MURID</th>
-                <th className="py-3.5 px-3">KELAS</th>
-                <th className="py-3.5 px-3 text-center">PENILAI</th>
-                <th className="py-3.5 px-3 text-center">SKOR (1-4)</th>
-                <th className="py-3.5 px-3 text-center">NILAI (100)</th>
-                <th className="py-3.5 px-3 text-center">PREDIKAT</th>
-                <th className="py-3.5 px-3 text-center">STATUS</th>
+
+                {/* Kop NIS */}
+                <th
+                  onClick={() => handleSort('nis')}
+                  className="py-3.5 px-3 cursor-pointer hover:bg-slate-100 transition-colors group print:cursor-default"
+                  title="Klik untuk mengurutkan berdasarkan NIS"
+                >
+                  <div className="flex items-center gap-1">
+                    <span className={sortKey === 'nis' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      NIS
+                    </span>
+                    {sortKey === 'nis' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3 h-3 text-blue-600 shrink-0 print:hidden" />
+                      ) : (
+                        <ArrowDown className="w-3 h-3 text-blue-600 shrink-0 print:hidden" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0 print:hidden" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Nama Murid */}
+                <th
+                  onClick={() => handleSort('nama')}
+                  className="py-3.5 px-4 cursor-pointer hover:bg-slate-100 transition-colors group print:cursor-default"
+                  title="Klik untuk mengurutkan berdasarkan nama murid"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortKey === 'nama' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      NAMA MURID
+                    </span>
+                    {sortKey === 'nama' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0 print:hidden" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Kelas */}
+                <th
+                  onClick={() => handleSort('kelas')}
+                  className="py-3.5 px-3 cursor-pointer hover:bg-slate-100 transition-colors group print:cursor-default"
+                  title="Klik untuk mengurutkan berdasarkan kelas"
+                >
+                  <div className="flex items-center gap-1">
+                    <span className={sortKey === 'kelas' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      KELAS
+                    </span>
+                    {sortKey === 'kelas' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0 print:hidden" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Penilai */}
+                <th
+                  onClick={() => handleSort('assessorCount')}
+                  className="py-3.5 px-3 text-center cursor-pointer hover:bg-slate-100 transition-colors group print:cursor-default"
+                  title="Klik untuk mengurutkan berdasarkan jumlah penilai"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span className={sortKey === 'assessorCount' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      PENILAI
+                    </span>
+                    {sortKey === 'assessorCount' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3 h-3 text-blue-600 shrink-0 print:hidden" />
+                      ) : (
+                        <ArrowDown className="w-3 h-3 text-blue-600 shrink-0 print:hidden" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0 print:hidden" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Skor 1-4 */}
+                <th
+                  onClick={() => handleSort('averageScore4')}
+                  className="py-3.5 px-3 text-center cursor-pointer hover:bg-slate-100 transition-colors group print:cursor-default"
+                  title="Klik untuk mengurutkan berdasarkan skor 1-4"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span className={sortKey === 'averageScore4' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      SKOR (1-4)
+                    </span>
+                    {sortKey === 'averageScore4' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0 print:hidden" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Nilai 100 */}
+                <th
+                  onClick={() => handleSort('finalScore100')}
+                  className="py-3.5 px-3 text-center cursor-pointer hover:bg-slate-100 transition-colors group print:cursor-default"
+                  title="Klik untuk mengurutkan berdasarkan nilai akhir (100)"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span className={sortKey === 'finalScore100' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      NILAI (100)
+                    </span>
+                    {sortKey === 'finalScore100' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0 print:hidden" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Predikat */}
+                <th
+                  onClick={() => handleSort('predicate')}
+                  className="py-3.5 px-3 text-center cursor-pointer hover:bg-slate-100 transition-colors group print:cursor-default"
+                  title="Klik untuk mengurutkan berdasarkan predikat"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span className={sortKey === 'predicate' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      PREDIKAT
+                    </span>
+                    {sortKey === 'predicate' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0 print:hidden" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Status */}
+                <th
+                  onClick={() => handleSort('status')}
+                  className="py-3.5 px-3 text-center cursor-pointer hover:bg-slate-100 transition-colors group print:cursor-default"
+                  title="Klik untuk mengurutkan berdasarkan status"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span className={sortKey === 'status' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      STATUS
+                    </span>
+                    {sortKey === 'status' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0 print:hidden" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0 print:hidden" />
+                    )}
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm print:divide-black">
-              {recapData.length === 0 ? (
+              {sortedRecapData.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400">
                     Tidak ditemukan data siswa untuk rekap ini.
                   </td>
                 </tr>
               ) : (
-                recapData.map((row, idx) => (
+                sortedRecapData.map((row, idx) => (
                   <tr key={row.student.uid} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3.5 px-3 text-center font-medium text-slate-400">
                       {idx + 1}

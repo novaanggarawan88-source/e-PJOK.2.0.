@@ -115,6 +115,8 @@ async function checkRoleFromFirestorePengguna(
   // 4. Jika akun baru (misal login Google pertama kali), tentukan peran otomatis
   const isTeacher =
     fbUser.email?.toLowerCase() === 'agusaryadevaudayana19@gmail.com' ||
+    fbUser.email?.toLowerCase() === 'novaanggarawan88@gmail.com' ||
+    fbUser.email?.toLowerCase().includes('anggarawan') ||
     fbUser.email?.toLowerCase().includes('guru') ||
     Boolean(fbUser.email?.toLowerCase().endsWith('.sch.id') && !fbUser.email?.toLowerCase().includes('siswa'));
 

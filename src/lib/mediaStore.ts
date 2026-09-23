@@ -6,7 +6,7 @@
  */
 
 import { db, isFirebaseConfigured } from './firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 
 const DB_NAME = 'pjok_media_db';
 const DB_VERSION = 1;
@@ -103,6 +103,24 @@ export const MediaStore = {
     } catch (e) {
       console.warn('Gagal membaca IndexedDB:', e);
       return null;
+    }
+  },
+
+  /**
+   * Menghapus media dari IndexedDB dan potongan Firestore
+   */
+  async deleteMedia(id: string): Promise<void> {
+    const cleanId = id.replace(/^idb:\/\//, '');
+    try {
+      const database = await openDB();
+      const tx = database.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(cleanId);
+    } catch {}
+
+    if (isFirebaseConfigured() && db) {
+      try {
+        await deleteDoc(doc(db, 'evidence_chunks', cleanId));
+      } catch {}
     }
   },
 
@@ -293,12 +311,19 @@ export const MediaStore = {
    */
   formatExternalVideoEmbedUrl(url?: string | null): string | null {
     if (!url) return null;
-    if (url.includes('drive.google.com')) {
-      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    const clean = url.trim();
+    if (clean.includes('drive.google.com')) {
+      const match =
+        clean.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+        clean.match(/\/d\/([a-zA-Z0-9_-]+)/) ||
+        clean.match(/[?&]id=([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
         return `https://drive.google.com/file/d/${match[1]}/preview`;
       }
-      return url;
+      if (clean.includes('/view')) {
+        return clean.replace('/view', '/preview');
+      }
+      return clean;
     }
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       const match = url.match(/(?:watch\?v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);

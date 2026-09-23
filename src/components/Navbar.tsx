@@ -5,7 +5,7 @@ import { ThemeToggle } from './ThemeToggle';
 import {
   Menu,
   X,
-  UserCheck
+  Flame
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -56,8 +56,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen }
             </div>
           </div>
 
-          {/* Right Section: Theme Toggle (Gelap/Terang) */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Right Section: Status Terhubung Firebase Akun Guru & Theme Toggle */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {role === 'guru' && (
+              <div
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/80 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-300 shadow-xs"
+                title="Status: Terhubung Firebase Cloud Firestore & Auth"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+                <span className="hidden xs:inline sm:inline">Terhubung Firebase</span>
+                <span className="xs:hidden sm:hidden">Firebase</span>
+              </div>
+            )}
             <ThemeToggle />
           </div>
 

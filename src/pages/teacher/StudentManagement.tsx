@@ -100,7 +100,8 @@ export const StudentManagement: React.FC = () => {
       nomorAbsen: nomorAbsen.trim(),
       nis: nis.trim(),
       status,
-      createdAt: editingStudent?.createdAt || new Date().toISOString()
+      createdAt: editingStudent?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     await DatabaseService.saveUser(studentToSave);
@@ -222,7 +223,8 @@ export const StudentManagement: React.FC = () => {
           password: passVal || '123456',
           role: 'murid',
           status: 'aktif',
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
         await DatabaseService.saveUser(newStudent);
         importedCount++;

@@ -14,13 +14,19 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   Download,
-  AlertCircle
+  AlertCircle,
+  Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 interface AssessmentResultsProps {
   initialSelectedRecord?: AssessmentRecord | null;
   onClearInitialSelected?: () => void;
 }
+
+type AssessmentSortKey = 'assessorName' | 'targetName' | 'assessorClass' | 'taskTitle' | 'averageScore' | 'createdAt';
 
 export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
   initialSelectedRecord,
@@ -37,8 +43,25 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
   const [searchTarget, setSearchTarget] = useState('');
   const [searchDate, setSearchDate] = useState('');
 
+  // Sorting
+  const [sortKey, setSortKey] = useState<AssessmentSortKey>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
   // Selected for Modal Detail (Section 21)
   const [detailRecord, setDetailRecord] = useState<AssessmentRecord | null>(null);
+
+  const handleSort = (key: AssessmentSortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      if (key === 'createdAt' || key === 'averageScore') {
+        setSortDirection('desc');
+      } else {
+        setSortDirection('asc');
+      }
+    }
+  };
 
   const loadData = async () => {
     const [a, c, t] = await Promise.all([
@@ -77,6 +100,23 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
     setAssessments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
   };
 
+  const handleDeleteAssessment = async (record: AssessmentRecord) => {
+    const confirmMsg = `Hapus data penilaian dari "${record.assessorName}" untuk "${record.targetName}"?\n\nSetelah dihapus, murid penilai (${record.assessorName}) dapat mengisi ulang kembali penilaian untuk tugas/teman ini.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await DatabaseService.deleteAssessment(record.id);
+      setAssessments((prev) => prev.filter((a) => a.id !== record.id));
+      if (detailRecord?.id === record.id) {
+        setDetailRecord(null);
+      }
+      alert(`Penilaian berhasil dihapus!\nMurid "${record.assessorName}" sekarang dapat mengisi ulang penilaian kembali.`);
+    } catch (err) {
+      console.error('Gagal menghapus penilaian:', err);
+      alert('Terjadi kendala saat menghapus penilaian.');
+    }
+  };
+
   // Filter evaluation
   const filteredAssessments = assessments.filter((a) => {
     const matchClass = selectedClass === 'Semua' || a.assessorClass === selectedClass;
@@ -88,6 +128,27 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
     const matchDate = !searchDate || (a.createdAt && a.createdAt.startsWith(searchDate));
 
     return matchClass && matchTask && matchAssessor && matchTarget && matchDate;
+  });
+
+  // Sort evaluation
+  const sortedAssessments = [...filteredAssessments].sort((a, b) => {
+    let comparison = 0;
+    if (sortKey === 'assessorName') {
+      comparison = a.assessorName.localeCompare(b.assessorName, 'id', { sensitivity: 'base' });
+    } else if (sortKey === 'targetName') {
+      comparison = a.targetName.localeCompare(b.targetName, 'id', { sensitivity: 'base' });
+    } else if (sortKey === 'assessorClass') {
+      comparison = (a.assessorClass || '').localeCompare(b.assessorClass || '', 'id', { numeric: true });
+    } else if (sortKey === 'taskTitle') {
+      comparison = (a.taskTitle || '').localeCompare(b.taskTitle || '', 'id');
+    } else if (sortKey === 'averageScore') {
+      comparison = (a.averageScore || 0) - (b.averageScore || 0);
+    } else if (sortKey === 'createdAt') {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      comparison = timeA - timeB;
+    }
+    return sortDirection === 'asc' ? comparison : -comparison;
   });
 
   return (
@@ -106,12 +167,17 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
 
       {/* Filter Toolbar (Section 21) */}
       <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-          <Filter className="w-3.5 h-3.5 text-blue-600" />
-          <span>Filter & Pencarian Hasil</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <Filter className="w-3.5 h-3.5 text-blue-600" />
+            <span>Filter & Pencarian Hasil</span>
+          </div>
+          <span className="text-xs text-slate-400 font-medium">
+            Menampilkan <strong className="text-blue-600">{sortedAssessments.length}</strong> dari {assessments.length} hasil
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Filter Kelas */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 mb-1">Kelas</label>
@@ -155,7 +221,8 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
               onChange={(e) => setSearchAssessor(e.target.value)}
               placeholder="Cari nama penilai..."
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-blue-500"
-            />
+            >
+            </input>
           </div>
 
           {/* Search Yang Dinilai */}
@@ -167,7 +234,8 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
               onChange={(e) => setSearchTarget(e.target.value)}
               placeholder="Cari yang dinilai..."
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-blue-500"
-            />
+            >
+            </input>
           </div>
 
           {/* Filter Tanggal */}
@@ -180,6 +248,33 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-blue-500"
             />
           </div>
+
+          {/* Urutkan Berdasarkan Menu */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 mb-1">Urutkan / Sort</label>
+            <select
+              value={`${sortKey}_${sortDirection}`}
+              onChange={(e) => {
+                const parts = e.target.value.split('_');
+                const k = parts[0] as AssessmentSortKey;
+                const d = parts[1] as 'asc' | 'desc';
+                setSortKey(k);
+                setSortDirection(d);
+              }}
+              className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-900 font-semibold focus:outline-hidden focus:border-blue-500"
+            >
+              <option value="createdAt_desc">Tanggal Terbaru (Default)</option>
+              <option value="createdAt_asc">Tanggal Terlama</option>
+              <option value="assessorName_asc">Penilai (A - Z)</option>
+              <option value="assessorName_desc">Penilai (Z - A)</option>
+              <option value="targetName_asc">Yang Dinilai (A - Z)</option>
+              <option value="targetName_desc">Yang Dinilai (Z - A)</option>
+              <option value="assessorClass_asc">Kelas (A - Z)</option>
+              <option value="averageScore_desc">Skor (Tertinggi)</option>
+              <option value="averageScore_asc">Skor (Terendah)</option>
+              <option value="taskTitle_asc">Judul Tugas (A - Z)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -188,27 +283,154 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none">
                 <th className="py-3.5 px-4 w-12 text-center">NO</th>
-                <th className="py-3.5 px-4">PENILAI</th>
-                <th className="py-3.5 px-4">YANG DINILAI</th>
-                <th className="py-3.5 px-4">KELAS</th>
-                <th className="py-3.5 px-4">TUGAS</th>
-                <th className="py-3.5 px-4 text-center">RATA-RATA</th>
-                <th className="py-3.5 px-4">TANGGAL</th>
+
+                {/* Kop Penilai */}
+                <th
+                  onClick={() => handleSort('assessorName')}
+                  className="py-3.5 px-4 cursor-pointer hover:bg-slate-100 transition-colors group"
+                  title="Klik untuk mengurutkan berdasarkan nama penilai"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortKey === 'assessorName' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      PENILAI
+                    </span>
+                    {sortKey === 'assessorName' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Yang Dinilai */}
+                <th
+                  onClick={() => handleSort('targetName')}
+                  className="py-3.5 px-4 cursor-pointer hover:bg-slate-100 transition-colors group"
+                  title="Klik untuk mengurutkan berdasarkan nama yang dinilai"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortKey === 'targetName' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      YANG DINILAI
+                    </span>
+                    {sortKey === 'targetName' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Kelas */}
+                <th
+                  onClick={() => handleSort('assessorClass')}
+                  className="py-3.5 px-4 cursor-pointer hover:bg-slate-100 transition-colors group"
+                  title="Klik untuk mengurutkan berdasarkan kelas"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortKey === 'assessorClass' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      KELAS
+                    </span>
+                    {sortKey === 'assessorClass' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Tugas */}
+                <th
+                  onClick={() => handleSort('taskTitle')}
+                  className="py-3.5 px-4 cursor-pointer hover:bg-slate-100 transition-colors group"
+                  title="Klik untuk mengurutkan berdasarkan tugas"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortKey === 'taskTitle' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      TUGAS
+                    </span>
+                    {sortKey === 'taskTitle' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Rata-rata */}
+                <th
+                  onClick={() => handleSort('averageScore')}
+                  className="py-3.5 px-4 text-center cursor-pointer hover:bg-slate-100 transition-colors group"
+                  title="Klik untuk mengurutkan berdasarkan nilai rata-rata"
+                >
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className={sortKey === 'averageScore' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      RATA-RATA
+                    </span>
+                    {sortKey === 'averageScore' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0" />
+                    )}
+                  </div>
+                </th>
+
+                {/* Kop Tanggal */}
+                <th
+                  onClick={() => handleSort('createdAt')}
+                  className="py-3.5 px-4 cursor-pointer hover:bg-slate-100 transition-colors group"
+                  title="Klik untuk mengurutkan berdasarkan tanggal penilaian"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={sortKey === 'createdAt' ? 'text-blue-700 font-extrabold' : 'group-hover:text-slate-800'}>
+                      TANGGAL
+                    </span>
+                    {sortKey === 'createdAt' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 group-hover:opacity-100 shrink-0" />
+                    )}
+                  </div>
+                </th>
+
                 <th className="py-3.5 px-4 text-center">BUKTI</th>
-                <th className="py-3.5 px-4 text-center">DETAIL</th>
+                <th className="py-3.5 px-4 text-center">AKSI</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
-              {filteredAssessments.length === 0 ? (
+              {sortedAssessments.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400">
                     Tidak ada penilaian yang sesuai dengan kriteria filter.
                   </td>
                 </tr>
               ) : (
-                filteredAssessments.map((a, idx) => (
+                sortedAssessments.map((a, idx) => (
                   <tr key={a.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3.5 px-4 text-center font-medium text-slate-400">
                       {idx + 1}
@@ -249,13 +471,24 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <button
-                        onClick={() => setDetailRecord(a)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-colors"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Buka</span>
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => setDetailRecord(a)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-colors cursor-pointer"
+                          title="Buka Rincian Penilaian"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Buka</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAssessment(a)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer"
+                          title="Hapus Penilaian (Murid penilai bisa mengisi ulang kembali)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Hapus</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -411,11 +644,19 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
                 </div>
               </div>
 
-              <div className="flex justify-end pt-3 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteAssessment(detailRecord)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Hapus Penilaian Ini (Beri Kesempatan Isi Ulang)</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setDetailRecord(null)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer text-center"
                 >
                   Tutup Rincian
                 </button>

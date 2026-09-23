@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { DatabaseService } from '../../services/db';
 import { MediaStore } from '../../lib/mediaStore';
+import { EvidenceViewer } from '../../components/EvidenceViewer';
 import {
   AssessmentTask,
   IndicatorItem,
@@ -648,25 +649,19 @@ export const StudentAssessmentForm: React.FC<StudentAssessmentFormProps> = ({
               )
             ) : (
               <div className="space-y-3">
-                <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 max-h-72 flex items-center justify-center relative">
-                  {evidenceType === 'video' ? (
-                    <video
-                      src={evidenceUrl}
-                      controls
-                      playsInline
-                      className="w-full max-h-72 object-contain"
+                <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 flex items-center justify-center relative p-1">
+                  <div className="w-full">
+                    <EvidenceViewer
+                      evidenceUrl={evidenceUrl}
+                      thumbnailUrl={thumbnailPreview}
+                      evidenceType={evidenceType}
+                      autoPlay={false}
                     />
-                  ) : (
-                    <img
-                      src={evidenceUrl}
-                      alt="Preview bukti"
-                      className="w-full max-h-72 object-contain bg-slate-100 dark:bg-slate-800"
-                    />
-                  )}
+                  </div>
                   <button
                     type="button"
                     onClick={handleRemoveMedia}
-                    className="absolute top-3 right-3 p-2 rounded-xl bg-slate-900/80 text-white hover:bg-rose-600 transition-colors cursor-pointer"
+                    className="absolute top-3 right-3 p-2 rounded-xl bg-slate-900/80 text-white hover:bg-rose-600 transition-colors cursor-pointer z-10 shadow-md"
                     title="Hapus Bukti"
                   >
                     <X className="w-4 h-4" />
