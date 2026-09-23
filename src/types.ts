@@ -212,13 +212,21 @@ export interface MaterialProgress {
   completedAt: string;
 }
 
+export interface AnswerItem {
+  soalIndex: number;
+  pertanyaan: string;
+  jawaban: string;
+}
+
 export interface LearningTaskItem {
   id: string;
   judul: string;
   materi: string; // Topik bab, misal "Permainan Bola Besar (Bola Basket)", "Kebugaran Jasmani"
-  kelas: string; // "Semua Kelas" atau spesifik kelas
+  kelas: string; // Ringkasan kelas target (misal: "XI 7, XI 8" atau "Semua Kelas")
+  targetClasses?: string[]; // Daftar kelas yang dipilih guru (bisa lebih dari 1 kelas)
   deskripsi: string;
   instruksi: string[];
+  daftarSoal?: string[]; // Butir-butir soal yang dibuat oleh guru untuk dijawab langsung oleh murid
   batasWaktu: string;
   status: 'aktif' | 'draf' | 'selesai';
   lampiranUrl?: string; // Tautan LKPD / Google Drive / Modul Guru
@@ -237,7 +245,8 @@ export interface LearningTaskSubmission {
   studentName: string;
   studentClass: string;
   studentNoAbsen?: string;
-  catatanJawaban: string;
+  catatanJawaban: string; // Jawaban umum atau ringkasan
+  jawabanSoal?: AnswerItem[]; // Jawaban terstruktur per butir soal
   linkLampiran?: string;
   fileBuktiUrl?: string;
   fileBuktiNama?: string;

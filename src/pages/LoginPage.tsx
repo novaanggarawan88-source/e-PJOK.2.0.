@@ -18,8 +18,8 @@ import {
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
 
-  const [username, setUsername] = useState('guru');
-  const [password, setPassword] = useState('guru123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const [error, setError] = useState<string | null>(null);

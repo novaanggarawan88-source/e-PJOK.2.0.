@@ -1225,7 +1225,16 @@ export const DatabaseService = {
     }
     let filtered = result;
     if (kelas && kelas !== 'Semua Kelas') {
-      filtered = filtered.filter((t) => t.kelas === 'Semua Kelas' || t.kelas === kelas);
+      filtered = filtered.filter((t) => {
+        if (!t.kelas || t.kelas === 'Semua Kelas') return true;
+        if (t.targetClasses && Array.isArray(t.targetClasses)) {
+          if (t.targetClasses.includes('Semua Kelas') || t.targetClasses.includes(kelas)) {
+            return true;
+          }
+        }
+        const splitted = t.kelas.split(',').map((s) => s.trim());
+        return splitted.includes('Semua Kelas') || splitted.includes(kelas);
+      });
     }
     if (onlyActive) {
       filtered = filtered.filter((t) => t.status === 'aktif');
