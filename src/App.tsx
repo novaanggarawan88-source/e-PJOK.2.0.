@@ -10,7 +10,7 @@ import { Navbar } from './components/Navbar';
 import { LoginPage } from './pages/LoginPage';
 import { TeacherView } from './pages/TeacherView';
 import { StudentView } from './pages/StudentView';
-import { Activity } from 'lucide-react';
+import { AppLogo } from './components/AppLogo';
 
 const MainApp: React.FC = () => {
   const { user, loading } = useAuth();
@@ -19,13 +19,13 @@ const MainApp: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 transition-colors">
-        <div className="w-16 h-16 rounded-3xl bg-linear-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-xl shadow-emerald-600/25 animate-pulse mb-4">
-          <Activity className="w-9 h-9 animate-bounce" />
+        <div className="mb-4">
+          <AppLogo size="xl" showText={false} />
         </div>
-        <p className="font-extrabold text-slate-800 dark:text-white text-lg font-heading tracking-tight">
-          PENILAIAN ANTAR TEMAN PJOK
+        <p className="font-extrabold text-slate-800 dark:text-white text-xl font-heading tracking-tight">
+          e-PJOK
         </p>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Memuat data pengguna...</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Memuat aplikasi pembelajaran & penilaian...</p>
       </div>
     );
   }

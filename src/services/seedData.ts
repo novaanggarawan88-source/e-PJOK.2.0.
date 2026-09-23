@@ -3,7 +3,7 @@ import { UserProfile, ClassItem, IndicatorItem, AssessmentTask, AssessmentRecord
 export const INITIAL_APP_CONFIG: AppConfig = {
   id: 'app_config',
   appName: 'e-PJOK',
-  schoolName: 'SMK / SMA PJOK',
+  schoolName: 'SMA NEGERI 1 TEJAKULA',
   motto: 'Sportif, Jujur, dan Menghargai Gerak Teman',
   logoIconPreset: 'activity',
   logoUrl: '',

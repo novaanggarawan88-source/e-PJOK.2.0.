@@ -395,6 +395,9 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ onEditAssessment
                       evidenceType={selectedRecord.evidenceType}
                       className="w-full max-h-60 object-contain"
                       onUpdateEvidence={handleUpdateEvidence}
+                      uploaderName={selectedRecord.assessorName}
+                      targetName={selectedRecord.targetName}
+                      taskTitle={selectedRecord.taskTitle}
                     />
                   </div>
                 </div>

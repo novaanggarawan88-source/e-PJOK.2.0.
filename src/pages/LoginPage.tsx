@@ -25,10 +25,31 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [config, setConfig] = useState<AppConfig>(INITIAL_APP_CONFIG);
+  const [config, setConfig] = useState<AppConfig>(() => {
+    try {
+      const stored = localStorage.getItem('pjok_data_app_config');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed) {
+          if (!parsed.appName || parsed.appName === 'PENILAIAN ANTAR TEMAN PJOK') {
+            parsed.appName = 'e-PJOK';
+          }
+          return { ...INITIAL_APP_CONFIG, ...parsed };
+        }
+      }
+    } catch {}
+    return INITIAL_APP_CONFIG;
+  });
 
   useEffect(() => {
-    DatabaseService.getAppConfig().then(setConfig);
+    DatabaseService.getAppConfig().then((cfg) => {
+      if (cfg) {
+        if (!cfg.appName || cfg.appName === 'PENILAIAN ANTAR TEMAN PJOK') {
+          cfg.appName = 'e-PJOK';
+        }
+        setConfig(cfg);
+      }
+    });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,13 +91,13 @@ export const LoginPage: React.FC = () => {
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-heading">
-          {config.appName || 'PENILAIAN ANTAR TEMAN PJOK'}
+          {config.appName && config.appName !== 'PENILAIAN ANTAR TEMAN PJOK' ? config.appName : 'e-PJOK'}
         </h1>
         <p className="mt-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
           &ldquo;{config.motto || 'Sportif, Jujur, dan Menghargai Gerak Teman'}&rdquo;
         </p>
         <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-          {config.schoolName || 'Pendidikan Jasmani, Olahraga, dan Kesehatan'}
+          {config.schoolName || 'SMA NEGERI 1 TEJAKULA'}
         </p>
       </div>
 

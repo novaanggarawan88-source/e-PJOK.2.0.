@@ -458,6 +458,8 @@ export const StudentLearningTasks: React.FC<StudentLearningTasksProps> = ({ user
                             evidenceUrl={selectedTask.lampiranUrl}
                             evidenceType="video"
                             autoPlay={false}
+                            uploaderName="Guru PJOK"
+                            taskTitle={selectedTask.judul}
                           />
                         </div>
                       ) : (

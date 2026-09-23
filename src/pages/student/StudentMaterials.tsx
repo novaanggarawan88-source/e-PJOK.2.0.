@@ -265,7 +265,7 @@ export const StudentMaterials: React.FC = () => {
         <div className="flex-1 bg-slate-950 relative overflow-hidden flex flex-col">
           {studentTab === 'frame' ? (
             <>
-              {isGoogleAppsScriptUrl(activeViewUrl || activeMaterial.linkUrl) && (
+              {isGoogleAppsScriptUrl(activeViewUrl || activeMaterial.linkUrl) ? (
                 <div className="bg-teal-950/80 border-b border-teal-800/80 px-4 py-2 flex items-center justify-between text-xs text-teal-300">
                   <span className="flex items-center gap-1.5">
                     <Code className="w-3.5 h-3.5 text-teal-400" />
@@ -278,6 +278,21 @@ export const StudentMaterials: React.FC = () => {
                     className="text-teal-200 underline font-bold hover:text-white"
                   >
                     Buka layar penuh ↗
+                  </a>
+                </div>
+              ) : (
+                <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
+                  <span className="text-[11px] text-slate-400">
+                    💡 Jika video/materi tidak muncul atau Google meminta izin, buka langsung di tab baru:
+                  </span>
+                  <a
+                    href={activeViewUrl || activeMaterial.linkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-xs transition-colors"
+                  >
+                    <span>Buka Materi di Tab Baru</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>
               )}

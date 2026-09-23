@@ -61,8 +61,8 @@ export const SettingsPage: React.FC = () => {
       DatabaseService.getUsers()
     ]);
     setConfig(cfg);
-    setAppName(cfg.appName || 'PENILAIAN ANTAR TEMAN PJOK');
-    setSchoolName(cfg.schoolName || 'SMK / SMA PJOK');
+    setAppName(cfg.appName && cfg.appName !== 'PENILAIAN ANTAR TEMAN PJOK' ? cfg.appName : 'e-PJOK');
+    setSchoolName(cfg.schoolName || 'SMA NEGERI 1 TEJAKULA');
     setMotto(cfg.motto || 'Sportif, Jujur, dan Menghargai Gerak Teman');
     setLogoUrl(cfg.logoUrl || '');
     setLogoIconPreset(cfg.logoIconPreset || 'activity');
@@ -166,8 +166,8 @@ export const SettingsPage: React.FC = () => {
     setSavingConfig(true);
     const updated: AppConfig = {
       ...config,
-      appName: appName.trim() || 'PENILAIAN ANTAR TEMAN PJOK',
-      schoolName: schoolName.trim() || 'SMK / SMA PJOK',
+      appName: appName.trim() || 'e-PJOK',
+      schoolName: schoolName.trim() || 'SMA NEGERI 1 TEJAKULA',
       motto: motto.trim() || 'Sportif, Jujur, dan Menghargai Gerak Teman',
       logoUrl: logoUrl.trim(),
       logoIconPreset,
@@ -390,7 +390,7 @@ export const SettingsPage: React.FC = () => {
                 type="text"
                 value={appName}
                 onChange={(e) => setAppName(e.target.value)}
-                placeholder="PENILAIAN ANTAR TEMAN PJOK"
+                placeholder="e-PJOK"
                 required
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-hidden focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
               />
@@ -664,7 +664,7 @@ export const SettingsPage: React.FC = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2 justify-center sm:justify-start">
             <h4 className="font-black text-slate-900 font-heading">
-              {appName || 'PENILAIAN ANTAR TEMAN PJOK'}
+              {appName || 'e-PJOK'}
             </h4>
             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-800">
               v1.0.0

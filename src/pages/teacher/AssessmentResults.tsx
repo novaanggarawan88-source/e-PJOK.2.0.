@@ -459,9 +459,24 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       {a.evidenceType === 'video' ? (
-                        <span className="inline-flex items-center gap-1 text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md font-semibold text-[11px]">
-                          <Video className="w-3.5 h-3.5" /> Video
-                        </span>
+                        <div className="flex items-center justify-center gap-1">
+                          {a.evidenceUrl ? (
+                            <a
+                              href={a.evidenceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-purple-700 bg-purple-50 hover:bg-purple-100 px-2 py-0.5 rounded-md font-bold text-[11px] transition-colors"
+                              title="Putar Video Langsung di Tab Baru"
+                            >
+                              <Video className="w-3.5 h-3.5 text-purple-600" />
+                              <span>Video ↗</span>
+                            </a>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                              <Video className="w-3.5 h-3.5" /> Video
+                            </span>
+                          )}
+                        </div>
                       ) : a.evidenceType === 'foto' ? (
                         <span className="inline-flex items-center gap-1 text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md font-semibold text-[11px]">
                           <Image className="w-3.5 h-3.5" /> Foto
@@ -572,6 +587,9 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
                       evidenceType={detailRecord.evidenceType}
                       className="w-full max-h-80 object-contain rounded-xl"
                       onUpdateEvidence={handleUpdateEvidence}
+                      uploaderName={detailRecord.assessorName}
+                      targetName={detailRecord.targetName}
+                      taskTitle={detailRecord.taskTitle}
                     />
                   </div>
                 </div>

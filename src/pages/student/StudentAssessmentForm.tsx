@@ -619,32 +619,75 @@ export const StudentAssessmentForm: React.FC<StudentAssessmentFormProps> = ({
                   />
                 </label>
               ) : (
-                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3.5">
+                  {/* Panduan Wajib Hak Akses Google Drive */}
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/70 rounded-xl space-y-2">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                          PENTING: Pastikan Hak Akses Google Drive Sudah Dibuka!
+                        </p>
+                        <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">
+                          Jika izin belum dibuka, video <strong>tidak akan bisa diputar oleh Guru maupun teman</strong> (muncul pesan error / menolak terhubung).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-lg text-[11px] text-slate-700 dark:text-slate-300 space-y-1">
+                      <p className="font-semibold text-slate-800 dark:text-slate-200">
+                        Cara buka izin di aplikasi Google Drive HP:
+                      </p>
+                      <p>1. Buka Google Drive di HP ➔ cari video teman yang kamu rekam.</p>
+                      <p>2. Klik <strong>titik tiga (⋮)</strong> pada file video ➔ pilih <strong>&ldquo;Kelola Akses&rdquo; (Manage Access)</strong>.</p>
+                      <p>3. Ubah Akses Umum dari <em>&ldquo;Dibatasi&rdquo;</em> menjadi <strong>&ldquo;Siapa saja yang memiliki link&rdquo;</strong> (Pelihat/Viewer).</p>
+                      <p>4. Klik <strong>Salin Link</strong> lalu tempelkan di kotak berikut:</p>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                       Tempelkan Tautan Video (Google Drive / YouTube / Direct MP4)
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="url"
                         placeholder="Contoh: https://drive.google.com/file/d/.../view atau link YouTube"
                         value={videoLinkInput}
                         onChange={(e) => setVideoLinkInput(e.target.value)}
-                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono text-[12px]"
                       />
-                      <button
-                        type="button"
-                        onClick={handleApplyVideoLink}
-                        disabled={!videoLinkInput.trim()}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
-                      >
-                        Gunakan Link
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {videoLinkInput.trim().startsWith('http') && (
+                          <a
+                            href={videoLinkInput.trim()}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all text-center flex items-center gap-1"
+                            title="Buka link untuk memastikan bisa diputar"
+                          >
+                            <span>Tes Buka</span>
+                            <Info className="w-3.5 h-3.5 text-blue-500" />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleApplyVideoLink}
+                          disabled={!videoLinkInput.trim()}
+                          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          Gunakan Link Ini
+                        </button>
+                      </div>
                     </div>
+
+                    {videoLinkInput.includes('drive.google.com') && videoLinkInput.includes('usp=drivesdk') && (
+                      <p className="mt-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 p-2 rounded-lg flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>Tautan dari aplikasi Google Drive HP terdeteksi. Jangan lupa pastikan izin sudah disetel ke &ldquo;Siapa saja yang memiliki link&rdquo; ya!</span>
+                      </p>
+                    )}
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    💡 Jika video tersimpan di Google Drive, pastikan izin berbagi disetel ke <em>"Siapa saja yang memiliki tautan dapat melihat"</em>.
-                  </p>
                 </div>
               )
             ) : (
@@ -656,13 +699,16 @@ export const StudentAssessmentForm: React.FC<StudentAssessmentFormProps> = ({
                       thumbnailUrl={thumbnailPreview}
                       evidenceType={evidenceType}
                       autoPlay={false}
+                      uploaderName={user?.nama || 'Saya'}
+                      targetName={classmates.find((c) => c.uid === selectedTargetId)?.nama}
+                      taskTitle={task.nama}
                     />
                   </div>
                   <button
                     type="button"
                     onClick={handleRemoveMedia}
                     className="absolute top-3 right-3 p-2 rounded-xl bg-slate-900/80 text-white hover:bg-rose-600 transition-colors cursor-pointer z-10 shadow-md"
-                    title="Hapus Bukti"
+                    title="Ganti / Hapus Bukti"
                   >
                     <X className="w-4 h-4" />
                   </button>

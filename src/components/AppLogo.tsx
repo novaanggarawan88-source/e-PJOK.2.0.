@@ -22,8 +22,27 @@ export const AppLogo: React.FC<AppLogoProps> = ({
   whiteText = false,
   extraSubtitle
 }) => {
+  const [config, setConfig] = useState<AppConfig>(() => {
+    try {
+      const stored = localStorage.getItem('pjok_data_app_config');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed) {
+          if (!parsed.appName || parsed.appName === 'PENILAIAN ANTAR TEMAN PJOK') {
+            parsed.appName = 'e-PJOK';
+          }
+          return { ...INITIAL_APP_CONFIG, ...parsed };
+        }
+      }
+    } catch {}
+    return INITIAL_APP_CONFIG;
+  });
 
-  const [config, setConfig] = useState<AppConfig>(INITIAL_APP_CONFIG);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [config.logoUrl]);
 
   useEffect(() => {
     let mounted = true;
@@ -46,14 +65,14 @@ export const AppLogo: React.FC<AppLogoProps> = ({
     sm: 'w-8 h-8 rounded-lg',
     md: 'w-10 h-10 sm:w-11 sm:h-11 rounded-xl',
     lg: 'w-12 h-12 sm:w-14 sm:h-14 rounded-2xl',
-    xl: 'w-16 h-16 sm:w-20 sm:h-20 rounded-3xl'
+    xl: 'w-20 h-20 sm:w-24 sm:h-24 rounded-3xl'
   }[size];
 
   const iconSizes = {
     sm: 'w-4 h-4',
     md: 'w-5 h-5 sm:w-6 sm:h-6',
     lg: 'w-7 h-7 sm:w-8 sm:h-8',
-    xl: 'w-9 h-9 sm:w-11 sm:h-11'
+    xl: 'w-11 h-11 sm:w-13 sm:h-13'
   }[size];
 
   const renderIcon = () => {
@@ -72,25 +91,24 @@ export const AppLogo: React.FC<AppLogoProps> = ({
     }
   };
 
+  const hasImage = Boolean(config.logoUrl && !imageError);
+
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       <div
         className={`${sizeClasses} overflow-hidden shrink-0 flex items-center justify-center font-bold transition-transform shadow-md ${
-          config.logoUrl
-            ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-slate-200/60 dark:shadow-none p-1'
+          hasImage
+            ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-slate-200/60 dark:shadow-none p-1.5'
             : 'bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-emerald-600/25'
         }`}
       >
-        {config.logoUrl ? (
+        {hasImage ? (
           <img
             src={config.logoUrl}
             alt={config.appName || 'Logo Sekolah'}
-            className="w-full h-full object-contain rounded-lg"
+            className="w-full h-full object-contain rounded-xl"
             referrerPolicy="no-referrer"
-            onError={(e) => {
-              // fallback if image fails to load
-              (e.target as HTMLElement).style.display = 'none';
-            }}
+            onError={() => setImageError(true)}
           />
         ) : (
           renderIcon()
