@@ -10,7 +10,8 @@ import {
   MaterialItem,
   MaterialProgress,
   LearningTaskItem,
-  LearningTaskSubmission
+  LearningTaskSubmission,
+  AppNotification
 } from '../types';
 import {
   INITIAL_CLASSES,
@@ -55,6 +56,7 @@ const LS_MATERIALS = 'pjok_data_materials';
 const LS_MATERIAL_PROGRESS = 'pjok_data_material_progress';
 const LS_LEARNING_TASKS = 'pjok_data_learning_tasks';
 const LS_LEARNING_SUBMISSIONS = 'pjok_data_learning_submissions';
+const LS_NOTIFICATIONS = 'pjok_data_notifications';
 
 // Event listener subscribers for reactive updates across the app
 type ListenerCallback = () => void;
@@ -112,14 +114,30 @@ export const initRealtimeCloudSync = () => {
       (err) => handleSyncNotice('app_config', err)
     );
 
-    // 2. Classes (Kelas)
+    // 2. Classes (Kelas) - Safe merge preserving local edits
     onSnapshot(
       collection(db, 'classes'),
       (snap) => {
         if (!snap.empty) {
           const cloudClasses = snap.docs.map((d) => d.data() as ClassItem);
+          const local = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
+          const map = new Map<string, ClassItem>();
+          cloudClasses.forEach((c) => map.set(c.id, c));
+          local.forEach((lc) => {
+            const cc = map.get(lc.id);
+            if (!cc) {
+              map.set(lc.id, lc);
+            } else {
+              const localT = (lc as any).updatedAt || lc.createdAt || '1970-01-01';
+              const cloudT = (cc as any).updatedAt || cc.createdAt || '1970-01-01';
+              if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
+                map.set(lc.id, lc);
+              }
+            }
+          });
+          const merged = Array.from(map.values());
           try {
-            localStorage.setItem(LS_CLASSES, JSON.stringify(cloudClasses));
+            localStorage.setItem(LS_CLASSES, JSON.stringify(merged));
           } catch {}
           notifySubscribers();
         }
@@ -127,14 +145,30 @@ export const initRealtimeCloudSync = () => {
       (err) => handleSyncNotice('classes', err)
     );
 
-    // 3. Assessment Tasks (Tugas Penilaian)
+    // 3. Assessment Tasks (Tugas Penilaian) - Safe merge
     onSnapshot(
       collection(db, 'tasks'),
       (snap) => {
         if (!snap.empty) {
           const cloudTasks = snap.docs.map((d) => d.data() as AssessmentTask);
+          const local = getStored<AssessmentTask>(LS_TASKS, INITIAL_TASKS);
+          const map = new Map<string, AssessmentTask>();
+          cloudTasks.forEach((t) => map.set(t.id, t));
+          local.forEach((lt) => {
+            const ct = map.get(lt.id);
+            if (!ct) {
+              map.set(lt.id, lt);
+            } else {
+              const localT = (lt as any).updatedAt || lt.createdAt || '1970-01-01';
+              const cloudT = (ct as any).updatedAt || ct.createdAt || '1970-01-01';
+              if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
+                map.set(lt.id, lt);
+              }
+            }
+          });
+          const merged = Array.from(map.values());
           try {
-            localStorage.setItem(LS_TASKS, JSON.stringify(cloudTasks));
+            localStorage.setItem(LS_TASKS, JSON.stringify(merged));
           } catch {}
           notifySubscribers();
         }
@@ -190,14 +224,30 @@ export const initRealtimeCloudSync = () => {
       (err) => handleSyncNotice('pengguna', err)
     );
 
-    // 6. Assessments (Hasil Penilaian Antar Teman)
+    // 6. Assessments (Hasil Penilaian Antar Teman) - Safe merge preserving local submissions
     onSnapshot(
       collection(db, 'assessments'),
       (snap) => {
         if (!snap.empty) {
           const cloudAssessments = snap.docs.map((d) => d.data() as AssessmentRecord);
+          const local = getStored<AssessmentRecord>(LS_ASSESSMENTS, INITIAL_ASSESSMENTS);
+          const map = new Map<string, AssessmentRecord>();
+          cloudAssessments.forEach((a) => map.set(a.id, a));
+          local.forEach((la) => {
+            const ca = map.get(la.id);
+            if (!ca) {
+              map.set(la.id, la);
+            } else {
+              const localT = la.updatedAt || la.createdAt || '1970-01-01';
+              const cloudT = ca.updatedAt || ca.createdAt || '1970-01-01';
+              if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
+                map.set(la.id, la);
+              }
+            }
+          });
+          const merged = Array.from(map.values());
           try {
-            localStorage.setItem(LS_ASSESSMENTS, JSON.stringify(cloudAssessments));
+            localStorage.setItem(LS_ASSESSMENTS, JSON.stringify(merged));
           } catch {}
           notifySubscribers();
         }
@@ -264,6 +314,30 @@ export const initRealtimeCloudSync = () => {
       },
       (err) => handleSyncNotice('material_progress', err)
     );
+
+    // 11. Notifications (Pemberitahuan Tugas Baru & Feedback Nilai)
+    onSnapshot(
+      collection(db, 'notifications'),
+      (snap) => {
+        if (!snap.empty) {
+          const cloudNotifs = snap.docs.map((d) => d.data() as AppNotification);
+          const local = getStored<AppNotification>(LS_NOTIFICATIONS, []);
+          const map = new Map<string, AppNotification>();
+          cloudNotifs.forEach((n) => map.set(n.id, n));
+          local.forEach((ln) => {
+            if (!map.has(ln.id)) {
+              map.set(ln.id, ln);
+            }
+          });
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem(LS_NOTIFICATIONS, JSON.stringify(merged));
+          } catch {}
+          notifySubscribers();
+        }
+      },
+      (err) => handleSyncNotice('notifications', err)
+    );
   } catch (err) {
     console.warn('Gagal memasang realtime listener Firestore:', err);
   }
@@ -273,118 +347,12 @@ export const initRealtimeCloudSync = () => {
 const DUMMY_CLEARED_KEY = 'pjok_dummy_cleared_prod_v4';
 
 export const purgeDummyData = async () => {
-  try {
-    const dummyUserIds = new Set(['murid-1', 'murid-2', 'murid-3', 'murid-4', 'murid-5']);
-    const dummyTaskIds = new Set(['task-1']);
-    const dummyAssessmentIds = new Set(['asm-1', 'asm-2', 'asm-3']);
-    const dummyQuizIds = new Set(['quiz-basket-1']);
-    const dummyMaterialIds = new Set(['mat-appscript-1', 'mat-voli-1', 'mat-basket-1', 'mat-kebugaran-1']);
-    const dummyLearningTaskIds = new Set(['lt-1', 'lt-2']);
-
-    // 1. Clean localStorage users
-    const rawUsers = localStorage.getItem(LS_USERS);
-    if (rawUsers) {
-      try {
-        const users: UserProfile[] = JSON.parse(rawUsers);
-        const cleaned = users.filter((u) => !dummyUserIds.has(u.uid));
-        localStorage.setItem(LS_USERS, JSON.stringify(cleaned));
-      } catch {}
-    }
-
-    // 2. Clean localStorage tasks
-    const rawTasks = localStorage.getItem(LS_TASKS);
-    if (rawTasks) {
-      try {
-        const tasks: AssessmentTask[] = JSON.parse(rawTasks);
-        const cleaned = tasks.filter((t) => !dummyTaskIds.has(t.id));
-        localStorage.setItem(LS_TASKS, JSON.stringify(cleaned));
-      } catch {}
-    }
-
-    // 3. Clean localStorage assessments
-    const rawAssessments = localStorage.getItem(LS_ASSESSMENTS);
-    if (rawAssessments) {
-      try {
-        const assessments: AssessmentRecord[] = JSON.parse(rawAssessments);
-        const cleaned = assessments.filter((a) => !dummyAssessmentIds.has(a.id) && !dummyTaskIds.has(a.taskId));
-        localStorage.setItem(LS_ASSESSMENTS, JSON.stringify(cleaned));
-      } catch {}
-    }
-
-    // 4. Clean localStorage quizzes
-    const rawQuizzes = localStorage.getItem(LS_QUIZZES);
-    if (rawQuizzes) {
-      try {
-        const quizzes: any[] = JSON.parse(rawQuizzes);
-        const cleaned = quizzes.filter((q) => !dummyQuizIds.has(q.id));
-        localStorage.setItem(LS_QUIZZES, JSON.stringify(cleaned));
-      } catch {}
-    }
-
-    // 5. Clean localStorage materials
-    const rawMaterials = localStorage.getItem(LS_MATERIALS);
-    if (rawMaterials) {
-      try {
-        const materials: any[] = JSON.parse(rawMaterials);
-        const cleaned = materials.filter((m) => !dummyMaterialIds.has(m.id));
-        localStorage.setItem(LS_MATERIALS, JSON.stringify(cleaned));
-      } catch {}
-    }
-
-    // 6. Clean localStorage learning tasks
-    const rawLT = localStorage.getItem(LS_LEARNING_TASKS);
-    if (rawLT) {
-      try {
-        const ltasks: any[] = JSON.parse(rawLT);
-        const cleaned = ltasks.filter((lt) => !dummyLearningTaskIds.has(lt.id));
-        localStorage.setItem(LS_LEARNING_TASKS, JSON.stringify(cleaned));
-      } catch {}
-    }
-
-    // 7. Clean from Firestore if configured
-    if (isFirebaseConfigured() && db) {
-      for (const uid of dummyUserIds) {
-        try {
-          await deleteDoc(doc(db, 'pengguna', uid));
-          await deleteDoc(doc(db, 'users', uid));
-        } catch {}
-      }
-      for (const id of dummyTaskIds) {
-        try {
-          await deleteDoc(doc(db, 'tasks', id));
-        } catch {}
-      }
-      for (const id of dummyAssessmentIds) {
-        try {
-          await deleteDoc(doc(db, 'assessments', id));
-        } catch {}
-      }
-      for (const id of dummyQuizIds) {
-        try {
-          await deleteDoc(doc(db, 'quizzes', id));
-        } catch {}
-      }
-      for (const id of dummyMaterialIds) {
-        try {
-          await deleteDoc(doc(db, 'materials', id));
-        } catch {}
-      }
-      for (const id of dummyLearningTaskIds) {
-        try {
-          await deleteDoc(doc(db, 'learning_tasks', id));
-        } catch {}
-      }
-    }
-
-    localStorage.setItem(DUMMY_CLEARED_KEY, 'true');
-    notifySubscribers();
-  } catch (err) {
-    console.warn('purgeDummyData error:', err);
-  }
+  // Safe no-op: pastikan tugas, nilai, dan akun siswa tidak terhapus
+  return;
 };
 
 if (typeof window !== 'undefined' && !localStorage.getItem(DUMMY_CLEARED_KEY)) {
-  purgeDummyData();
+  localStorage.setItem(DUMMY_CLEARED_KEY, 'true');
 }
 
 const getStored = <T>(key: string, defaultData: T[]): T[] => {
@@ -468,24 +436,18 @@ export const DatabaseService = {
           return seeded;
         }
 
-        // 2. Gabungkan dengan data lokal secara presisi berbasis timestamp
+        // 2. Gabungkan dengan data lokal secara presisi berbasis timestamp (in-memory read, no Firestore write loop)
         const finalMap = new Map<string, UserProfile>(cloudMap);
 
         for (const lu of localUsers) {
           const cu = finalMap.get(lu.uid);
           if (!cu) {
-            // Pengguna baru di lokal, simpan ke map & push ke cloud
             finalMap.set(lu.uid, lu);
-            setDoc(doc(db, 'pengguna', lu.uid), lu, { merge: true }).catch(() => {});
-            setDoc(doc(db, 'users', lu.uid), lu, { merge: true }).catch(() => {});
           } else {
-            // Keduanya ada: prioritaskan yang memiliki waktu pembaruan lebih baru!
             const localTime = lu.updatedAt || lu.createdAt || '1970-01-01';
             const cloudTime = cu.updatedAt || cu.createdAt || '1970-01-01';
             if (new Date(localTime).getTime() > new Date(cloudTime).getTime()) {
               finalMap.set(lu.uid, lu);
-              setDoc(doc(db, 'pengguna', lu.uid), lu, { merge: true }).catch(() => {});
-              setDoc(doc(db, 'users', lu.uid), lu, { merge: true }).catch(() => {});
             }
           }
         }
@@ -592,49 +554,74 @@ export const DatabaseService = {
 
   // --- CLASSES ---
   async getClasses(): Promise<ClassItem[]> {
+    const localClasses = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
     if (isFirebaseConfigured() && db) {
       try {
         const snap = await getDocs(collection(db, 'classes'));
         if (!snap.empty) {
           const cloudClasses = snap.docs.map((d) => d.data() as ClassItem);
+          const map = new Map<string, ClassItem>();
+          cloudClasses.forEach((c) => map.set(c.id, c));
+          localClasses.forEach((lc) => {
+            const cc = map.get(lc.id);
+            if (!cc) {
+              map.set(lc.id, lc);
+            } else {
+              const localT = (lc as any).updatedAt || lc.createdAt || '1970-01-01';
+              const cloudT = (cc as any).updatedAt || cc.createdAt || '1970-01-01';
+              if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
+                map.set(lc.id, lc);
+              }
+            }
+          });
+          const merged = Array.from(map.values());
           try {
-            localStorage.setItem(LS_CLASSES, JSON.stringify(cloudClasses));
+            localStorage.setItem(LS_CLASSES, JSON.stringify(merged));
           } catch {}
-          return cloudClasses;
-        }
-
-        // Jika Firestore kosong, seed data kelas ke cloud
-        const localClasses = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
-        for (const c of localClasses) {
-          await setDoc(doc(db, 'classes', c.id), c, { merge: true });
+          return merged;
         }
         return localClasses;
       } catch (err) {
-        console.warn('Firestore getClasses failed:', err);
+        console.warn('Firestore getClasses failed, using local:', err);
       }
     }
-    return getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
+    return localClasses;
   },
 
   async saveClass(item: ClassItem): Promise<void> {
-    if (isFirebaseConfigured() && db) {
-      try {
-        await setDoc(doc(db, 'classes', item.id), item, { merge: true });
-      } catch (err) {
-        console.warn('Firestore saveClass error:', err);
-      }
-    }
+    const itemWithTime: ClassItem = {
+      ...item,
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    } as any;
+
+    // 1. Simpan ke local storage terlebih dahulu agar perubahan instan & tidak terpengaruh kuota
     const all = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
-    const idx = all.findIndex((c) => c.id === item.id);
+    const idx = all.findIndex((c) => c.id === itemWithTime.id);
     if (idx >= 0) {
-      all[idx] = item;
+      all[idx] = itemWithTime;
     } else {
-      all.push(item);
+      all.push(itemWithTime);
     }
     setStored(LS_CLASSES, all);
+    notifySubscribers();
+
+    // 2. Sinkronkan ke cloud Firestore secara non-blocking
+    if (isFirebaseConfigured() && db) {
+      try {
+        await setDoc(doc(db, 'classes', itemWithTime.id), itemWithTime, { merge: true });
+      } catch (err) {
+        console.warn('Firestore saveClass error (tersimpan lokal):', err);
+      }
+    }
   },
 
   async deleteClass(id: string): Promise<void> {
+    const all = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
+    const filtered = all.filter((c) => c.id !== id);
+    setStored(LS_CLASSES, filtered);
+    notifySubscribers();
+
     if (isFirebaseConfigured() && db) {
       try {
         await deleteDoc(doc(db, 'classes', id));
@@ -642,9 +629,6 @@ export const DatabaseService = {
         console.warn('Firestore deleteClass error:', err);
       }
     }
-    const all = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
-    const filtered = all.filter((c) => c.id !== id);
-    setStored(LS_CLASSES, filtered);
   },
 
   // --- INDICATORS ---
@@ -748,24 +732,68 @@ export const DatabaseService = {
   },
 
   async saveTask(task: AssessmentTask): Promise<void> {
-    if (isFirebaseConfigured() && db) {
-      try {
-        await setDoc(doc(db, 'tasks', task.id), task, { merge: true });
-      } catch (err) {
-        console.warn('Firestore saveTask error:', err);
-      }
-    }
+    const taskWithTime: AssessmentTask = {
+      ...task,
+      createdAt: task.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    } as any;
+
     const all = getStored<AssessmentTask>(LS_TASKS, INITIAL_TASKS);
-    const idx = all.findIndex((t) => t.id === task.id);
+    const idx = all.findIndex((t) => t.id === taskWithTime.id);
+    const isNew = idx < 0;
     if (idx >= 0) {
-      all[idx] = task;
+      all[idx] = taskWithTime;
     } else {
-      all.push(task);
+      all.push(taskWithTime);
     }
     setStored(LS_TASKS, all);
+    notifySubscribers();
+
+    // Buat notifikasi otomatis ke siswa saat guru memposting tugas baru
+    if (isNew && taskWithTime.status === 'aktif') {
+      try {
+        const targetClasses =
+          taskWithTime.targetKelas && taskWithTime.targetKelas.length > 0
+            ? taskWithTime.targetKelas
+            : taskWithTime.kelas
+            ? taskWithTime.kelas.split(/[,;/]+/).map((k) => k.trim()).filter(Boolean)
+            : ['Semua'];
+
+        for (const cls of targetClasses) {
+          const notif: AppNotification = {
+            id: `notif-task-${taskWithTime.id}-${cls.replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}`,
+            userId: cls === 'Semua' || cls === 'Semua Kelas' ? 'all' : `class:${cls}`,
+            title: 'Tugas Penilaian Baru Diposting!',
+            message: `Guru PJOK memposting tugas "${taskWithTime.nama}" untuk materi ${taskWithTime.materi}. Segera pelajari dan lakukan penilaian gerak teman!`,
+            type: 'tugas_baru',
+            linkTarget: 'tasks',
+            referenceId: taskWithTime.id,
+            read: false,
+            senderName: 'Guru PJOK',
+            createdAt: new Date().toISOString()
+          };
+          await this.saveNotification(notif);
+        }
+      } catch (e) {
+        console.warn('Gagal membuat notifikasi tugas baru:', e);
+      }
+    }
+
+    if (isFirebaseConfigured() && db) {
+      try {
+        await setDoc(doc(db, 'tasks', taskWithTime.id), taskWithTime, { merge: true });
+      } catch (err) {
+        console.warn('Firestore saveTask error (tersimpan lokal):', err);
+      }
+    }
   },
 
   async deleteTask(id: string): Promise<void> {
+    const all = getStored<AssessmentTask>(LS_TASKS, INITIAL_TASKS);
+    const filtered = all.filter((t) => t.id !== id);
+    setStored(LS_TASKS, filtered);
+    notifySubscribers();
+
     if (isFirebaseConfigured() && db) {
       try {
         await deleteDoc(doc(db, 'tasks', id));
@@ -773,9 +801,6 @@ export const DatabaseService = {
         console.warn('Firestore deleteTask error:', err);
       }
     }
-    const all = getStored<AssessmentTask>(LS_TASKS, INITIAL_TASKS);
-    const filtered = all.filter((t) => t.id !== id);
-    setStored(LS_TASKS, filtered);
   },
 
   // --- ASSESSMENTS ---
@@ -786,14 +811,21 @@ export const DatabaseService = {
         const snap = await getDocs(collection(db, 'assessments'));
         if (!snap.empty) {
           const cloudAssessments = snap.docs.map((d) => d.data() as AssessmentRecord);
-          // Gabungkan data cloud dan data lokal agar tidak ada riwayat penilaian yang tertimpa
+          // Gabungkan cloud dan lokal: penilaian lokal yang belum sinkron atau lebih baru TIDAK AKAN HILANG
           const map = new Map<string, AssessmentRecord>();
-          for (const a of localAssessments) {
-            map.set(a.id, a);
-          }
-          for (const a of cloudAssessments) {
-            map.set(a.id, a);
-          }
+          cloudAssessments.forEach((a) => map.set(a.id, a));
+          localAssessments.forEach((la) => {
+            const ca = map.get(la.id);
+            if (!ca) {
+              map.set(la.id, la);
+            } else {
+              const localT = la.updatedAt || la.createdAt || '1970-01-01';
+              const cloudT = ca.updatedAt || ca.createdAt || '1970-01-01';
+              if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
+                map.set(la.id, la);
+              }
+            }
+          });
           const merged = Array.from(map.values());
           try {
             localStorage.setItem(LS_ASSESSMENTS, JSON.stringify(merged));
@@ -801,7 +833,7 @@ export const DatabaseService = {
           return merged;
         }
       } catch (err) {
-        console.warn('Firestore getAssessments failed:', err);
+        console.warn('Firestore getAssessments failed, using local assessments:', err);
       }
     }
     return localAssessments;
@@ -834,25 +866,19 @@ export const DatabaseService = {
   },
 
   async saveAssessment(record: AssessmentRecord): Promise<void> {
-    // Sanitasi record untuk Firestore & LocalStorage:
-    // Jangan pernah memasukkan base64 video berukuran puluhan MB ke dokumen Firestore atau localStorage
-    const recordToSave: AssessmentRecord = { ...record };
+    const recordToSave: AssessmentRecord = {
+      ...record,
+      updatedAt: new Date().toISOString()
+    };
     if (
       recordToSave.evidenceUrl &&
       recordToSave.evidenceUrl.startsWith('data:video') &&
       recordToSave.evidenceUrl.length > 50000
     ) {
-      // Ganti dengan idb:// ID jika belum disimpan di storage agar dokumen tetap ringan (<50KB)
       recordToSave.evidenceUrl = `idb://${record.id}`;
     }
 
-    if (isFirebaseConfigured() && db) {
-      try {
-        await setDoc(doc(db, 'assessments', recordToSave.id), recordToSave, { merge: true });
-      } catch (err) {
-        console.warn('Firestore saveAssessment error:', err);
-      }
-    }
+    // 1. Simpan ke local storage terlebih dahulu agar nilai TIDAK PERNAH HILANG
     const all = getStored<AssessmentRecord>(LS_ASSESSMENTS, INITIAL_ASSESSMENTS);
     const idx = all.findIndex((a) => a.id === recordToSave.id);
     if (idx >= 0) {
@@ -862,6 +888,37 @@ export const DatabaseService = {
     }
     setStored(LS_ASSESSMENTS, all);
     notifySubscribers();
+
+    // 2. Buat notifikasi alert untuk murid target yang dinilai
+    try {
+      const targetUserId = recordToSave.targetId || recordToSave.targetUserId || '';
+      if (targetUserId) {
+        const notif: AppNotification = {
+          id: `notif-feedback-${recordToSave.id}-${Date.now()}`,
+          userId: targetUserId,
+          title: 'Hasil Penilaian Baru Masuk!',
+          message: `${recordToSave.assessorName} telah menilai gerak Anda pada "${recordToSave.taskTitle || 'Tugas PJOK'}" dengan nilai ${recordToSave.finalScore100 || Math.round(recordToSave.averageScore * 25)}. Umpan balik: "${recordToSave.feedback || 'Gerakan sudah baik!'}"`,
+          type: 'umpan_balik',
+          linkTarget: 'history',
+          referenceId: recordToSave.id,
+          read: false,
+          senderName: recordToSave.assessorName,
+          createdAt: new Date().toISOString()
+        };
+        await this.saveNotification(notif);
+      }
+    } catch (e) {
+      console.warn('Gagal membuat notifikasi feedback penilaian:', e);
+    }
+
+    // 3. Sinkronkan ke Firestore secara non-blocking
+    if (isFirebaseConfigured() && db) {
+      try {
+        await setDoc(doc(db, 'assessments', recordToSave.id), recordToSave, { merge: true });
+      } catch (err) {
+        console.warn('Firestore saveAssessment error (tersimpan lokal):', err);
+      }
+    }
   },
 
   async deleteAssessment(id: string): Promise<void> {
@@ -1648,6 +1705,7 @@ export const DatabaseService = {
     localStorage.removeItem(LS_MATERIAL_PROGRESS);
     localStorage.removeItem(LS_LEARNING_TASKS);
     localStorage.removeItem(LS_LEARNING_SUBMISSIONS);
+    localStorage.removeItem(LS_NOTIFICATIONS);
     localStorage.setItem(LS_USERS, JSON.stringify(INITIAL_USERS));
     localStorage.setItem(LS_CLASSES, JSON.stringify(INITIAL_CLASSES));
     localStorage.setItem(LS_INDICATORS, JSON.stringify(INITIAL_INDICATORS));
@@ -1660,6 +1718,102 @@ export const DatabaseService = {
     localStorage.setItem(LS_MATERIAL_PROGRESS, JSON.stringify([]));
     localStorage.setItem(LS_LEARNING_TASKS, JSON.stringify(INITIAL_LEARNING_TASKS));
     localStorage.setItem(LS_LEARNING_SUBMISSIONS, JSON.stringify([]));
+    localStorage.setItem(LS_NOTIFICATIONS, JSON.stringify([]));
     notifySubscribers();
+  },
+
+  // --- NOTIFICATIONS SYSTEM ---
+  async getNotifications(userId?: string, userClass?: string): Promise<AppNotification[]> {
+    const all = getStored<AppNotification>(LS_NOTIFICATIONS, []);
+    if (!userId) return all;
+
+    const cleanUid = userId.toLowerCase().trim();
+    const cleanClass = userClass ? userClass.toLowerCase().trim() : '';
+
+    return all.filter((n) => {
+      const target = (n.userId || '').toLowerCase().trim();
+      if (target === 'all' || target === cleanUid) return true;
+      if (cleanClass && (target === `class:${cleanClass}` || target === cleanClass)) return true;
+      return false;
+    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+
+  async saveNotification(notif: AppNotification): Promise<void> {
+    const all = getStored<AppNotification>(LS_NOTIFICATIONS, []);
+    const idx = all.findIndex((n) => n.id === notif.id);
+    if (idx >= 0) {
+      all[idx] = notif;
+    } else {
+      all.unshift(notif);
+    }
+    setStored(LS_NOTIFICATIONS, all);
+    notifySubscribers();
+
+    if (isFirebaseConfigured() && db) {
+      try {
+        await setDoc(doc(db, 'notifications', notif.id), notif, { merge: true });
+      } catch (err) {
+        console.warn('Firestore saveNotification error (tersimpan lokal):', err);
+      }
+    }
+  },
+
+  async markNotificationAsRead(id: string): Promise<void> {
+    const all = getStored<AppNotification>(LS_NOTIFICATIONS, []);
+    const target = all.find((n) => n.id === id);
+    if (target) {
+      target.read = true;
+      setStored(LS_NOTIFICATIONS, all);
+      notifySubscribers();
+
+      if (isFirebaseConfigured() && db) {
+        try {
+          await setDoc(doc(db, 'notifications', id), { read: true }, { merge: true });
+        } catch {}
+      }
+    }
+  },
+
+  async markAllNotificationsAsRead(userId?: string, userClass?: string): Promise<void> {
+    const all = getStored<AppNotification>(LS_NOTIFICATIONS, []);
+    const cleanUid = userId ? userId.toLowerCase().trim() : '';
+    const cleanClass = userClass ? userClass.toLowerCase().trim() : '';
+
+    const updated = all.map((n) => {
+      const target = (n.userId || '').toLowerCase().trim();
+      const isMine =
+        !userId ||
+        target === 'all' ||
+        target === cleanUid ||
+        (cleanClass && (target === `class:${cleanClass}` || target === cleanClass));
+      if (isMine) {
+        return { ...n, read: true };
+      }
+      return n;
+    });
+
+    setStored(LS_NOTIFICATIONS, updated);
+    notifySubscribers();
+
+    if (isFirebaseConfigured() && db) {
+      for (const n of updated) {
+        if (n.read) {
+          setDoc(doc(db, 'notifications', n.id), { read: true }, { merge: true }).catch(() => {});
+        }
+      }
+    }
+  },
+
+  async deleteNotification(id: string): Promise<void> {
+    const all = getStored<AppNotification>(LS_NOTIFICATIONS, []);
+    const filtered = all.filter((n) => n.id !== id);
+    setStored(LS_NOTIFICATIONS, filtered);
+    notifySubscribers();
+
+    if (isFirebaseConfigured() && db) {
+      try {
+        await deleteDoc(doc(db, 'notifications', id));
+      } catch {}
+    }
   }
 };

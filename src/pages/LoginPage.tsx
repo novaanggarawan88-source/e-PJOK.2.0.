@@ -186,6 +186,49 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
+
+          {/* Quick Account Help / Panduan Masuk Siswa & Guru */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-bold">Bantuan Masuk Akun:</span>
+              <span>Sandi Murid: <code className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">123456</code></span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              Murid dapat masuk menggunakan <strong>NIS</strong> (contoh: 1001, 1002), <strong>Nama Lengkap</strong>, atau <strong>Username</strong>.
+            </p>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('1001');
+                  setPassword('123456');
+                }}
+                className="px-2.5 py-1 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300 transition-colors cursor-pointer font-medium"
+              >
+                Siswa: Andi (1001)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('1002');
+                  setPassword('123456');
+                }}
+                className="px-2.5 py-1 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300 transition-colors cursor-pointer font-medium"
+              >
+                Siswa: Budi (1002)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('guru@pjok.sch.id');
+                  setPassword('guru123');
+                }}
+                className="px-2.5 py-1 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300 transition-colors cursor-pointer font-medium"
+              >
+                Guru PJOK
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

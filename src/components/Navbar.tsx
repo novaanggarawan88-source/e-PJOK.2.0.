@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { AppLogo } from './AppLogo';
 import { ThemeToggle } from './ThemeToggle';
+import { NotificationBell } from './NotificationBell';
 import {
   Menu,
   X,
@@ -56,8 +57,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen }
             </div>
           </div>
 
-          {/* Right Section: Status Terhubung Firebase Akun Guru & Theme Toggle */}
+          {/* Right Section: Notification Bell, Status Terhubung Firebase Akun Guru & Theme Toggle */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Lonceng Notifikasi Sederhana untuk Siswa dan Guru */}
+            {currentUser && <NotificationBell />}
+
             {role === 'guru' && (
               <div
                 className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/80 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-300 shadow-xs"

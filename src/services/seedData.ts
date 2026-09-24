@@ -40,6 +40,66 @@ export const INITIAL_USERS: UserProfile[] = [
     status: 'aktif',
     fotoProfil: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&auto=format&fit=crop&q=80',
     createdAt: '2026-09-01T08:00:00.000Z'
+  },
+  {
+    uid: 'murid-1001',
+    nama: 'Andi Pratama',
+    nis: '1001',
+    kelas: 'XI 7',
+    nomorAbsen: '01',
+    email: 'andi@pjok.sch.id',
+    password: '123456',
+    role: 'murid',
+    status: 'aktif',
+    createdAt: '2026-09-01T08:00:00.000Z'
+  },
+  {
+    uid: 'murid-1002',
+    nama: 'Budi Santoso',
+    nis: '1002',
+    kelas: 'XI 7',
+    nomorAbsen: '02',
+    email: 'budi@pjok.sch.id',
+    password: '123456',
+    role: 'murid',
+    status: 'aktif',
+    createdAt: '2026-09-01T08:00:00.000Z'
+  },
+  {
+    uid: 'murid-1003',
+    nama: 'Citra Lestari',
+    nis: '1003',
+    kelas: 'XI 7',
+    nomorAbsen: '03',
+    email: 'citra@pjok.sch.id',
+    password: '123456',
+    role: 'murid',
+    status: 'aktif',
+    createdAt: '2026-09-01T08:00:00.000Z'
+  },
+  {
+    uid: 'murid-1004',
+    nama: 'Dewi Anggraini',
+    nis: '1004',
+    kelas: 'XI 7',
+    nomorAbsen: '04',
+    email: 'dewi@pjok.sch.id',
+    password: '123456',
+    role: 'murid',
+    status: 'aktif',
+    createdAt: '2026-09-01T08:00:00.000Z'
+  },
+  {
+    uid: 'murid-1005',
+    nama: 'Eko Prasetyo',
+    nis: '1005',
+    kelas: 'XI 7',
+    nomorAbsen: '05',
+    email: 'eko@pjok.sch.id',
+    password: '123456',
+    role: 'murid',
+    status: 'aktif',
+    createdAt: '2026-09-01T08:00:00.000Z'
   }
 ];
 

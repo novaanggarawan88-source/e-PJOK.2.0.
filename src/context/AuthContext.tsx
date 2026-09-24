@@ -541,12 +541,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const allUsers = await DatabaseService.getUsers();
     const matchedUser = allUsers.find((u) => {
       const emailPrefix = u.email ? u.email.split('@')[0].toLowerCase() : '';
+      const uNamaLower = u.nama.toLowerCase();
+      const firstWord = uNamaLower.split(' ')[0];
       return (
         (u.email && u.email.toLowerCase() === cleanLower) ||
         emailPrefix === cleanLower ||
         (u.nis && u.nis.toLowerCase() === cleanLower) ||
         (u.nip && u.nip.toLowerCase() === cleanLower) ||
-        u.nama.toLowerCase() === cleanLower ||
+        uNamaLower === cleanLower ||
+        firstWord === cleanLower ||
         u.uid.toLowerCase() === cleanLower
       );
     });
@@ -557,8 +560,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       const expectedPass = matchedUser.password || (matchedUser.role === 'guru' ? 'guru123' : '123456');
-      if (expectedPass && pass !== expectedPass) {
-        return { success: false, message: 'Kata sandi tidak sesuai. Silakan periksa kembali.' };
+      const inputPass = pass || (matchedUser.role === 'murid' ? '123456' : '');
+      if (expectedPass && inputPass !== expectedPass) {
+        return { success: false, message: 'Kata sandi tidak sesuai. Silakan periksa kembali (Standar siswa: 123456).' };
       }
 
       setCurrentUser(matchedUser);
@@ -568,7 +572,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return {
       success: false,
-      message: `Pengguna dengan username/NIS "${identity}" tidak ditemukan.`
+      message: `Pengguna dengan username/NIS "${identity}" tidak ditemukan. Pastikan NIS atau nama sudah didaftarkan oleh Guru PJOK.`
     };
   };
 

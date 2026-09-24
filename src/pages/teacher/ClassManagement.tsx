@@ -62,9 +62,12 @@ export const ClassManagement: React.FC = () => {
     e.preventDefault();
     if (!nama.trim()) return;
 
+    const oldName = editingClass?.nama;
+    const newName = nama.trim();
+
     const classData: ClassItem = {
-      id: editingClass ? editingClass.id : `class-${nama.toLowerCase().replace(/\s+/g, '-')}`,
-      nama: nama.trim(),
+      id: editingClass ? editingClass.id : `class-${newName.toLowerCase().replace(/\s+/g, '-')}`,
+      nama: newName,
       tingkat,
       jurusan,
       status,
@@ -72,13 +75,24 @@ export const ClassManagement: React.FC = () => {
     };
 
     await DatabaseService.saveClass(classData);
+
+    // Jika guru mengubah nama rombel/kelas, otomatis perbarui data murid di kelas tersebut
+    if (editingClass && oldName && oldName !== newName) {
+      const affectedStudents = students.filter((s) => s.kelas === oldName);
+      for (const s of affectedStudents) {
+        await DatabaseService.saveUser({ ...s, kelas: newName });
+      }
+    }
+
+    await loadData();
     setIsModalOpen(false);
-    showNotice(editingClass ? 'Data kelas berhasil diperbarui' : 'Kelas baru berhasil ditambahkan');
+    showNotice(editingClass ? `Data kelas "${newName}" berhasil diperbarui` : `Kelas "${newName}" berhasil ditambahkan`);
   };
 
   const handleToggleStatus = async (c: ClassItem) => {
     const newStatus = c.status === 'aktif' ? 'nonaktif' : 'aktif';
     await DatabaseService.saveClass({ ...c, status: newStatus });
+    await loadData();
     showNotice(`Status kelas ${c.nama} diubah menjadi ${newStatus}`);
   };
 
@@ -90,6 +104,7 @@ export const ClassManagement: React.FC = () => {
     }
     if (window.confirm(`Hapus kelas ${name}?`)) {
       await DatabaseService.deleteClass(id);
+      await loadData();
       showNotice(`Kelas ${name} berhasil dihapus`);
     }
   };

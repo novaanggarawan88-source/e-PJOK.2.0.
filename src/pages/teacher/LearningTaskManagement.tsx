@@ -188,6 +188,26 @@ export const LearningTaskManagement: React.FC = () => {
     };
 
     await DatabaseService.saveLearningTask(taskItem);
+
+    if (!editingTask && formData.status === 'aktif') {
+      try {
+        await DatabaseService.saveNotification({
+          id: `notif-lt-${taskItem.id}-${Date.now()}`,
+          userId: taskItem.kelas === 'Semua' || taskItem.kelas === 'Semua Kelas' ? 'all' : `class:${taskItem.kelas}`,
+          title: 'Tugas Pembelajaran Baru!',
+          message: `Guru PJOK memposting tugas pembelajaran "${taskItem.judul}" untuk materi ${taskItem.materi}. Segera kerjakan dan kumpulkan!`,
+          type: 'tugas_baru',
+          linkTarget: 'learning_tasks',
+          referenceId: taskItem.id,
+          read: false,
+          senderName: 'Guru PJOK',
+          createdAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn('Gagal membuat notifikasi tugas pembelajaran:', err);
+      }
+    }
+
     setIsTaskModalOpen(false);
     showToast(
       editingTask
@@ -253,6 +273,24 @@ export const LearningTaskManagement: React.FC = () => {
         status: 'dinilai'
       };
       await DatabaseService.saveLearningSubmission(updatedSub);
+
+      try {
+        await DatabaseService.saveNotification({
+          id: `notif-grade-${updatedSub.id}-${Date.now()}`,
+          userId: updatedSub.studentId,
+          title: 'Tugas Selesai Dinilai Guru!',
+          message: `Guru PJOK telah menilai pengerjaan "${updatedSub.taskJudul || 'Tugas Pembelajaran'}" Anda dengan nilai ${updatedSub.nilai}/100. Catatan: "${updatedSub.catatanGuru || 'Bagus sekali, terus pertahankan!'}"`,
+          type: 'nilai_baru',
+          linkTarget: 'learning_tasks',
+          referenceId: updatedSub.taskId,
+          read: false,
+          senderName: 'Guru PJOK',
+          createdAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn('Gagal membuat notifikasi nilai:', err);
+      }
+
       showToast(`Nilai untuk ${selectedSubmission.studentName} berhasil disimpan!`);
       setSelectedSubmission(updatedSub);
       await loadData();

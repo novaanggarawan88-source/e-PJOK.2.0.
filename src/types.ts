@@ -258,3 +258,16 @@ export interface LearningTaskSubmission {
   catatanGuru?: string;
 }
 
+export interface AppNotification {
+  id: string;
+  userId: string; // recipient student/user UID or 'all' or 'class:XI 7'
+  title: string;
+  message: string;
+  type: 'tugas_baru' | 'umpan_balik' | 'nilai_baru' | 'info';
+  linkTarget?: string; // e.g. 'tasks', 'history', 'learning_tasks', 'quizzes'
+  referenceId?: string; // taskId or assessmentId
+  read: boolean;
+  senderName?: string;
+  createdAt: string;
+}
+
