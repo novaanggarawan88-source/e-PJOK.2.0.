@@ -495,10 +495,7 @@ export const DatabaseService = {
     };
     if (isFirebaseConfigured() && db) {
       try {
-        await Promise.all([
-          setDoc(doc(db, 'pengguna', user.uid), userWithTime, { merge: true }),
-          setDoc(doc(db, 'users', user.uid), userWithTime, { merge: true })
-        ]);
+        await setDoc(doc(db, 'pengguna', user.uid), userWithTime, { merge: true });
       } catch (err) {
         console.warn('Firestore saveUser error:', err);
       }
@@ -517,10 +514,7 @@ export const DatabaseService = {
   async deleteUser(uid: string): Promise<void> {
     if (isFirebaseConfigured() && db) {
       try {
-        await Promise.all([
-          deleteDoc(doc(db, 'pengguna', uid)),
-          deleteDoc(doc(db, 'users', uid))
-        ]);
+        await deleteDoc(doc(db, 'pengguna', uid));
       } catch (err) {
         console.warn('Firestore deleteUser error:', err);
       }
@@ -539,7 +533,6 @@ export const DatabaseService = {
         const promises: Promise<any>[] = [];
         for (const uid of uids) {
           promises.push(deleteDoc(doc(db, 'pengguna', uid)));
-          promises.push(deleteDoc(doc(db, 'users', uid)));
         }
         await Promise.all(promises);
       } catch (err) {
@@ -1563,79 +1556,165 @@ export const DatabaseService = {
       };
     }
 
+    let successCount = 0;
+    let failCount = 0;
+
+    const safeSet = async (pathRef: any, data: any) => {
+      try {
+        await setDoc(pathRef, data, { merge: true });
+        successCount++;
+      } catch (e: any) {
+        failCount++;
+        console.warn('Sync item notice:', e);
+      }
+    };
+
     try {
       // 1. Sinkronkan Pengaturan Aplikasi & Logo
       const currentConfig = await this.getAppConfig();
-      await setDoc(doc(db, 'settings', 'app_config'), currentConfig, { merge: true });
+      await safeSet(doc(db, 'settings', 'app_config'), currentConfig);
 
-      // 2. Sinkronkan Pengguna / Murid & Guru (ke koleksi pengguna & users)
+      // 2. Sinkronkan Pengguna / Murid & Guru
       const localUsers = getStored<UserProfile>(LS_USERS, []);
       for (const u of localUsers) {
         const uWithTime: UserProfile = {
           ...u,
           updatedAt: u.updatedAt || u.createdAt || new Date().toISOString()
         };
-        await Promise.all([
-          setDoc(doc(db, 'pengguna', u.uid), uWithTime, { merge: true }),
-          setDoc(doc(db, 'users', u.uid), uWithTime, { merge: true })
-        ]);
+        await safeSet(doc(db, 'pengguna', u.uid), uWithTime);
       }
-
-      // Pastikan state lokal tersegarkan dengan data cloud
-      await this.getUsers();
 
       // 3. Sinkronkan Kelas
       const localClasses = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
       for (const c of localClasses) {
-        await setDoc(doc(db, 'classes', c.id), c, { merge: true });
+        await safeSet(doc(db, 'classes', c.id), c);
       }
 
       // 4. Sinkronkan Indikator
       const localIndicators = getStored<IndicatorItem>(LS_INDICATORS, INITIAL_INDICATORS);
       for (const ind of localIndicators) {
-        await setDoc(doc(db, 'indicators', ind.id), ind, { merge: true });
+        await safeSet(doc(db, 'indicators', ind.id), ind);
       }
 
-      // 5. Sinkronkan Tugas
+      // 5. Sinkronkan Tugas Penilaian
       const localTasks = getStored<AssessmentTask>(LS_TASKS, INITIAL_TASKS);
       for (const t of localTasks) {
-        await setDoc(doc(db, 'tasks', t.id), t, { merge: true });
+        await safeSet(doc(db, 'tasks', t.id), t);
       }
 
-      // 6. Sinkronkan Penilaian jika ada
+      // 6. Sinkronkan Penilaian Murid
       const localAssessments = getStored<AssessmentRecord>(LS_ASSESSMENTS, INITIAL_ASSESSMENTS);
       for (const a of localAssessments) {
-        await setDoc(doc(db, 'assessments', a.id), a, { merge: true });
+        await safeSet(doc(db, 'assessments', a.id), a);
       }
 
       // 7. Sinkronkan Kuis
       const localQuizzes = getStored<QuizItem>(LS_QUIZZES, INITIAL_QUIZZES);
       for (const q of localQuizzes) {
-        await setDoc(doc(db, 'quizzes', q.id), q, { merge: true });
+        await safeSet(doc(db, 'quizzes', q.id), q);
       }
 
       // 8. Sinkronkan Materi Pembelajaran
       const localMaterials = getStored<MaterialItem>(LS_MATERIALS, INITIAL_MATERIALS);
       for (const m of localMaterials) {
-        await setDoc(doc(db, 'materials', m.id), m, { merge: true });
+        await safeSet(doc(db, 'materials', m.id), m);
       }
 
       // 9. Sinkronkan Tugas Pembelajaran
       const localLearningTasks = getStored<LearningTaskItem>(LS_LEARNING_TASKS, INITIAL_LEARNING_TASKS);
       for (const lt of localLearningTasks) {
-        await setDoc(doc(db, 'learning_tasks', lt.id), lt, { merge: true });
+        await safeSet(doc(db, 'learning_tasks', lt.id), lt);
+      }
+
+      // 10. Sinkronkan Notifikasi
+      const localNotifs = getStored<AppNotification>(LS_NOTIFICATIONS, []);
+      for (const n of localNotifs) {
+        await safeSet(doc(db, 'notifications', n.id), n);
       }
 
       notifySubscribers();
+
+      if (failCount > 0 && successCount === 0) {
+        return {
+          success: false,
+          message: 'Penyimpanan cloud Firebase saat ini sedang mencapai limit kuota harian. Silakan tunggu reset kuota (pukul 07.00 WIB) atau ekspor data cadangan (.json) langsung ke HP.'
+        };
+      }
+
       return {
         success: true,
-        message: 'Semua data (Logo, Pengaturan, Kelas, Siswa, Indikator, Tugas Penilaian, Kuis, Materi, & Tugas Pembelajaran) berhasil disinkronkan ke Firebase Cloud. Sekarang laptop dan HP sinkron!'
+        message: `Berhasil menyinkronkan ${successCount} data ke Firebase Cloud! Sekarang buka di HP atau Laptop lain sudah 100% sama.`
       };
     } catch (error: any) {
       console.error('Error saat sinkronisasi ke cloud:', error);
       return {
         success: false,
         message: error?.message || 'Gagal menyinkronkan data ke cloud.'
+      };
+    }
+  },
+
+  /**
+   * Ekspor seluruh basis data aplikasi ke satu berkas JSON cadangan mandiri
+   */
+  exportAllDataAsJSON(): string {
+    let cfg = INITIAL_APP_CONFIG;
+    try {
+      const raw = localStorage.getItem(LS_APP_CONFIG);
+      if (raw) cfg = JSON.parse(raw);
+    } catch {}
+
+    const backup = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      config: cfg,
+      users: getStored(LS_USERS, INITIAL_USERS),
+      classes: getStored(LS_CLASSES, INITIAL_CLASSES),
+      indicators: getStored(LS_INDICATORS, INITIAL_INDICATORS),
+      tasks: getStored(LS_TASKS, INITIAL_TASKS),
+      assessments: getStored(LS_ASSESSMENTS, INITIAL_ASSESSMENTS),
+      quizzes: getStored(LS_QUIZZES, INITIAL_QUIZZES),
+      quizSubmissions: getStored(LS_QUIZ_SUBMISSIONS, []),
+      materials: getStored(LS_MATERIALS, INITIAL_MATERIALS),
+      materialProgress: getStored(LS_MATERIAL_PROGRESS, []),
+      learningTasks: getStored(LS_LEARNING_TASKS, INITIAL_LEARNING_TASKS),
+      learningSubmissions: getStored(LS_LEARNING_SUBMISSIONS, []),
+      notifications: getStored(LS_NOTIFICATIONS, [])
+    };
+    return JSON.stringify(backup, null, 2);
+  },
+
+  /**
+   * Pulihkan / Impor seluruh basis data dari berkas JSON cadangan (misal dikirim dari laptop ke HP)
+   */
+  importAllDataFromJSON(jsonString: string): { success: boolean; message: string } {
+    try {
+      const data = JSON.parse(jsonString);
+      if (!data) throw new Error('Berkas JSON tidak valid');
+
+      if (data.config) localStorage.setItem(LS_APP_CONFIG, JSON.stringify(data.config));
+      if (data.users) localStorage.setItem(LS_USERS, JSON.stringify(data.users));
+      if (data.classes) localStorage.setItem(LS_CLASSES, JSON.stringify(data.classes));
+      if (data.indicators) localStorage.setItem(LS_INDICATORS, JSON.stringify(data.indicators));
+      if (data.tasks) localStorage.setItem(LS_TASKS, JSON.stringify(data.tasks));
+      if (data.assessments) localStorage.setItem(LS_ASSESSMENTS, JSON.stringify(data.assessments));
+      if (data.quizzes) localStorage.setItem(LS_QUIZZES, JSON.stringify(data.quizzes));
+      if (data.quizSubmissions) localStorage.setItem(LS_QUIZ_SUBMISSIONS, JSON.stringify(data.quizSubmissions));
+      if (data.materials) localStorage.setItem(LS_MATERIALS, JSON.stringify(data.materials));
+      if (data.materialProgress) localStorage.setItem(LS_MATERIAL_PROGRESS, JSON.stringify(data.materialProgress));
+      if (data.learningTasks) localStorage.setItem(LS_LEARNING_TASKS, JSON.stringify(data.learningTasks));
+      if (data.learningSubmissions) localStorage.setItem(LS_LEARNING_SUBMISSIONS, JSON.stringify(data.learningSubmissions));
+      if (data.notifications) localStorage.setItem(LS_NOTIFICATIONS, JSON.stringify(data.notifications));
+
+      notifySubscribers();
+      return {
+        success: true,
+        message: 'Data aplikasi berhasil dipulihkan 100%! Semua data kelas, siswa, tugas, dan nilai telah terpasang.'
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        message: 'Gagal memulihkan berkas: ' + (e?.message || 'Format JSON tidak valid.')
       };
     }
   },

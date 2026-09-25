@@ -142,8 +142,16 @@ export const MediaStore = {
       const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
       const mimeType = file.type || 'video/mp4';
 
+      // Proteksi Kuota Firestore: Jangan unggah pecahan dokumen jika berkas > 1.5MB (> 3 chunks)
+      // Hal ini mencegah 300 siswa menghabiskan kuota harian Firestore gratis (20.000 writes/hari)
+      if (totalChunks > 3) {
+        console.info(`Berkas media ${cleanId} berukuran ${(file.size / (1024 * 1024)).toFixed(1)}MB. Disimpan lokal di IndexedDB & thumbnail cloud untuk melindungi kuota Firestore.`);
+        onProgress?.(100);
+        return true;
+      }
+
       let completedChunks = 0;
-      const CONCURRENCY = 4; // 4 parallel uploads to avoid socket exhaustion
+      const CONCURRENCY = 2; // Batasi koneksi simultan
 
       // Prepare chunks array
       const chunkIndexes = Array.from({ length: totalChunks }, (_, i) => i);

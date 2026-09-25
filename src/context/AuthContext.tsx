@@ -483,7 +483,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const matchedDoc = snapPengguna.docs.find((d) => {
             const data = d.data() as UserProfile;
             const emailPrefix = data.email ? data.email.split('@')[0].toLowerCase() : '';
+            const isNovaMatch =
+              (cleanLower === 'novaanggarawan' || cleanLower === 'novaanggarawan88' || cleanLower === 'nova') &&
+              (data.email?.toLowerCase().includes('novaanggarawan') || data.nama?.toLowerCase().includes('nova') || data.nama?.toLowerCase().includes('anggarawan'));
+            const isGuruMatch = cleanLower === 'guru' && data.role === 'guru';
             return (
+              isNovaMatch ||
+              isGuruMatch ||
               (data.email && data.email.toLowerCase() === cleanLower) ||
               emailPrefix === cleanLower ||
               (data.nis && data.nis.toLowerCase() === cleanLower) ||
@@ -543,7 +549,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const emailPrefix = u.email ? u.email.split('@')[0].toLowerCase() : '';
       const uNamaLower = u.nama.toLowerCase();
       const firstWord = uNamaLower.split(' ')[0];
+      const isNovaMatch =
+        (cleanLower === 'novaanggarawan' || cleanLower === 'novaanggarawan88' || cleanLower === 'nova') &&
+        (u.email?.toLowerCase().includes('novaanggarawan') || uNamaLower.includes('nova') || uNamaLower.includes('anggarawan'));
+      const isGuruMatch = cleanLower === 'guru' && u.role === 'guru';
       return (
+        isNovaMatch ||
+        isGuruMatch ||
         (u.email && u.email.toLowerCase() === cleanLower) ||
         emailPrefix === cleanLower ||
         (u.nis && u.nis.toLowerCase() === cleanLower) ||

@@ -16,7 +16,8 @@ import {
   Calendar,
   Flame,
   ShieldCheck,
-  FileText
+  FileText,
+  RefreshCw
 } from 'lucide-react';
 
 interface TeacherDashboardProps {
@@ -32,6 +33,26 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [tasks, setTasks] = useState<AssessmentTask[]>([]);
   const [assessments, setAssessments] = useState<AssessmentRecord[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setNotice(msg);
+    setTimeout(() => setNotice(null), 4000);
+  };
+
+  const handleSyncToCloud = async () => {
+    setSyncing(true);
+    try {
+      const res = await DatabaseService.syncAllLocalDataToCloud();
+      showToast(res.message);
+      await loadData();
+    } catch (e: any) {
+      showToast('Gagal sinkron: ' + (e?.message || 'Gangguan jaringan'));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const loadData = async () => {
     const [u, c, t, a] = await Promise.all([

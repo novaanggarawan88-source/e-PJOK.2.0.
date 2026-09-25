@@ -20,6 +20,17 @@ export const INITIAL_CLASSES: ClassItem[] = [
 
 export const INITIAL_USERS: UserProfile[] = [
   {
+    uid: 'guru-nova',
+    nama: 'Nova Anggarawan (Guru PJOK)',
+    email: 'novaanggarawan88@gmail.com',
+    password: 'guru123',
+    role: 'guru',
+    nip: '198501152010011005',
+    status: 'aktif',
+    fotoProfil: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&auto=format&fit=crop&q=80',
+    createdAt: '2026-09-01T08:00:00.000Z'
+  },
+  {
     uid: 'guru-1',
     nama: 'Guru PJOK',
     email: 'guru@pjok.sch.id',

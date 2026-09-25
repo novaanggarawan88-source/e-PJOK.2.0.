@@ -5,6 +5,7 @@ import { AppConfig } from '../types';
 import { INITIAL_APP_CONFIG } from '../services/seedData';
 import { AppLogo } from '../components/AppLogo';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { CloudSyncModal } from '../components/CloudSyncModal';
 import {
   Lock,
   User,
@@ -12,19 +13,22 @@ import {
   ArrowRight,
   CheckCircle2,
   Eye,
-  EyeOff
+  EyeOff,
+  RefreshCw
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [config, setConfig] = useState<AppConfig>(() => {
     try {
       const stored = localStorage.getItem('pjok_data_app_config');
@@ -74,6 +78,19 @@ export const LoginPage: React.FC = () => {
       setError(res.message || 'Gagal masuk. Periksa kembali username dan kata sandi Anda.');
     } else {
       setSuccessMsg('Login berhasil! Mengalihkan...');
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError(null);
+    setSuccessMsg(null);
+    setGoogleLoading(true);
+    const res = await loginWithGoogle();
+    setGoogleLoading(false);
+    if (!res.success) {
+      setError(res.message || 'Gagal masuk dengan Akun Google.');
+    } else {
+      setSuccessMsg('Login Google berhasil! Mengalihkan...');
     }
   };
 
@@ -173,7 +190,7 @@ export const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || googleLoading}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 focus:ring-4 focus:ring-emerald-500/30 shadow-md shadow-emerald-600/25 transition-all cursor-pointer disabled:opacity-50 mt-2"
             >
               {loading ? (
@@ -185,18 +202,74 @@ export const LoginPage: React.FC = () => {
                 </>
               )}
             </button>
+
+            {/* Opsi Masuk Cepat dengan Akun Google Guru */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading || loading}
+                className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-2xl text-xs sm:text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {googleLoading ? (
+                  <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      />
+                    </svg>
+                    <span>Masuk dengan Google (novaanggarawan88@gmail.com)</span>
+                  </>
+                )}
+              </button>
+            </div>
           </form>
 
           {/* Quick Account Help / Panduan Masuk Siswa & Guru */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
             <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
               <span className="font-bold">Bantuan Masuk Akun:</span>
-              <span>Sandi Murid: <code className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">123456</code></span>
+              <span>Sandi Guru: <code className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">guru123</code></span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              Murid dapat masuk menggunakan <strong>NIS</strong> (contoh: 1001, 1002), <strong>Nama Lengkap</strong>, atau <strong>Username</strong>.
+              Guru dapat masuk dengan username <strong>novaanggarawan</strong> atau <strong>guru</strong>. Murid dengan <strong>NIS</strong> (sandi: 123456).
             </p>
             <div className="flex flex-wrap gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('novaanggarawan');
+                  setPassword('guru123');
+                }}
+                className="px-2.5 py-1 text-xs rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900 border border-emerald-300 dark:border-emerald-700 transition-colors cursor-pointer font-bold"
+              >
+                Guru: Nova Anggarawan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('guru');
+                  setPassword('guru123');
+                }}
+                className="px-2.5 py-1 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300 transition-colors cursor-pointer font-medium"
+              >
+                Guru: guru
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -217,20 +290,28 @@ export const LoginPage: React.FC = () => {
               >
                 Siswa: Budi (1002)
               </button>
+            </div>
+
+            {/* Tombol Sinkronisasi / Pindahkan Data Laptop ke HP */}
+            <div className="pt-2 text-center">
               <button
                 type="button"
-                onClick={() => {
-                  setUsername('guru@pjok.sch.id');
-                  setPassword('guru123');
-                }}
-                className="px-2.5 py-1 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300 transition-colors cursor-pointer font-medium"
+                onClick={() => setShowSyncModal(true)}
+                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline cursor-pointer transition-colors"
               >
-                Guru PJOK
+                <RefreshCw className="w-3 h-3 text-blue-500" />
+                <span>Data di HP belum sesuai dg Laptop? Klik Sinkronisasi / Pulihkan Data</span>
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Modal Sinkronisasi Laptop ↔ HP */}
+      <CloudSyncModal
+        isOpen={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+      />
     </div>
   );
 };

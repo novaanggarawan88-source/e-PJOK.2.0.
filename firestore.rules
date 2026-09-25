@@ -77,6 +77,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // In-app Notifications collection (Alert tugas baru & umpan balik guru-siswa)
+    match /notifications/{notifId} {
+      allow read, write: if true;
+    }
+
     // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;

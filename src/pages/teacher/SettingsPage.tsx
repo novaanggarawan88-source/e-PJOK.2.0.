@@ -27,7 +27,9 @@ import {
   Lock,
   Eye,
   EyeOff,
-  RotateCcw
+  RotateCcw,
+  Download,
+  FileJson
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
@@ -228,6 +230,36 @@ export const SettingsPage: React.FC = () => {
       setResetting(false);
       showToast('Data aplikasi berhasil diatur ulang ke konfigurasi bersih.');
     }
+  };
+
+  const handleExportBackup = () => {
+    const jsonStr = DatabaseService.exportAllDataAsJSON();
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cadangan_epjok_lengkap_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Berkas cadangan lengkap berhasil diunduh!');
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const text = evt.target?.result as string;
+      if (text) {
+        const res = DatabaseService.importAllDataFromJSON(text);
+        showToast(res.message);
+        if (res.success) {
+          await loadData();
+        }
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -621,6 +653,51 @@ export const SettingsPage: React.FC = () => {
               <RefreshCw className={`w-4 h-4 ${syncingToCloud ? 'animate-spin' : ''}`} />
               <span>{syncingToCloud ? 'Menyinkronkan ke Cloud...' : 'Sinkronkan Semua Data ke Cloud Sekarang'}</span>
             </button>
+          </div>
+        </div>
+
+        {/* Cadangan & Pulihkan Berkas JSON (Transfer Cepat Laptop <-> HP) */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <FileJson className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm font-heading">
+                  Cadangkan & Salin Langsung ke HP (.json)
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Transfer semua data dari laptop ke HP tanpa hambatan kuota
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Unduh salinan berkas data lengkap dari laptop, lalu kirim ke WhatsApp HP Anda dan buka menu ini di HP untuk memulihkan seluruh data dalam 1 detik.
+            </p>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-2.5">
+            <button
+              type="button"
+              onClick={handleExportBackup}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              <span>Unduh Cadangan (.json)</span>
+            </button>
+
+            <label className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/70 text-indigo-700 text-xs font-bold transition-all cursor-pointer">
+              <Upload className="w-4 h-4" />
+              <span>Pulihkan di HP (.json)</span>
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImportBackup}
+                className="hidden"
+              />
+            </label>
           </div>
         </div>
 
