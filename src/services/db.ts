@@ -1556,6 +1556,7 @@ export const DatabaseService = {
       };
     }
 
+    const firestore = db;
     let successCount = 0;
     let failCount = 0;
 
@@ -1569,68 +1570,76 @@ export const DatabaseService = {
       }
     };
 
+    // Helper untuk menjalankan batch write secara paralel dalam kelompok kecil (chunks)
+    const runInChunks = async <T>(items: T[], fn: (item: T) => Promise<void>, chunkSize = 20) => {
+      for (let i = 0; i < items.length; i += chunkSize) {
+        const chunk = items.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(fn));
+      }
+    };
+
     try {
       // 1. Sinkronkan Pengaturan Aplikasi & Logo
       const currentConfig = await this.getAppConfig();
-      await safeSet(doc(db, 'settings', 'app_config'), currentConfig);
+      await safeSet(doc(firestore, 'settings', 'app_config'), currentConfig);
 
-      // 2. Sinkronkan Pengguna / Murid & Guru
+      // 2. Sinkronkan Pengguna / Murid & Guru secara paralel cepat
       const localUsers = getStored<UserProfile>(LS_USERS, []);
-      for (const u of localUsers) {
+      await runInChunks(localUsers, async (u) => {
         const uWithTime: UserProfile = {
           ...u,
           updatedAt: u.updatedAt || u.createdAt || new Date().toISOString()
         };
-        await safeSet(doc(db, 'pengguna', u.uid), uWithTime);
-      }
+        await safeSet(doc(firestore, 'pengguna', u.uid), uWithTime);
+      });
 
       // 3. Sinkronkan Kelas
       const localClasses = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
-      for (const c of localClasses) {
-        await safeSet(doc(db, 'classes', c.id), c);
-      }
+      await runInChunks(localClasses, async (c) => {
+        await safeSet(doc(firestore, 'classes', c.id), c);
+      });
 
       // 4. Sinkronkan Indikator
       const localIndicators = getStored<IndicatorItem>(LS_INDICATORS, INITIAL_INDICATORS);
-      for (const ind of localIndicators) {
-        await safeSet(doc(db, 'indicators', ind.id), ind);
-      }
+      await runInChunks(localIndicators, async (ind) => {
+        await safeSet(doc(firestore, 'indicators', ind.id), ind);
+      });
 
       // 5. Sinkronkan Tugas Penilaian
       const localTasks = getStored<AssessmentTask>(LS_TASKS, INITIAL_TASKS);
-      for (const t of localTasks) {
-        await safeSet(doc(db, 'tasks', t.id), t);
-      }
+      await runInChunks(localTasks, async (t) => {
+        await safeSet(doc(firestore, 'tasks', t.id), t);
+      });
 
       // 6. Sinkronkan Penilaian Murid
       const localAssessments = getStored<AssessmentRecord>(LS_ASSESSMENTS, INITIAL_ASSESSMENTS);
-      for (const a of localAssessments) {
-        await safeSet(doc(db, 'assessments', a.id), a);
-      }
+      await runInChunks(localAssessments, async (a) => {
+        await safeSet(doc(firestore, 'assessments', a.id), a);
+      });
 
       // 7. Sinkronkan Kuis
       const localQuizzes = getStored<QuizItem>(LS_QUIZZES, INITIAL_QUIZZES);
-      for (const q of localQuizzes) {
-        await safeSet(doc(db, 'quizzes', q.id), q);
-      }
+      await runInChunks(localQuizzes, async (q) => {
+        await safeSet(doc(firestore, 'quizzes', q.id), q);
+      });
 
       // 8. Sinkronkan Materi Pembelajaran
       const localMaterials = getStored<MaterialItem>(LS_MATERIALS, INITIAL_MATERIALS);
-      for (const m of localMaterials) {
-        await safeSet(doc(db, 'materials', m.id), m);
-      }
+      await runInChunks(localMaterials, async (m) => {
+        await safeSet(doc(firestore, 'materials', m.id), m);
+      });
 
       // 9. Sinkronkan Tugas Pembelajaran
       const localLearningTasks = getStored<LearningTaskItem>(LS_LEARNING_TASKS, INITIAL_LEARNING_TASKS);
-      for (const lt of localLearningTasks) {
-        await safeSet(doc(db, 'learning_tasks', lt.id), lt);
-      }
+      await runInChunks(localLearningTasks, async (lt) => {
+        await safeSet(doc(firestore, 'learning_tasks', lt.id), lt);
+      });
 
       // 10. Sinkronkan Notifikasi
       const localNotifs = getStored<AppNotification>(LS_NOTIFICATIONS, []);
-      for (const n of localNotifs) {
-        await safeSet(doc(db, 'notifications', n.id), n);
-      }
+      await runInChunks(localNotifs, async (n) => {
+        await safeSet(doc(firestore, 'notifications', n.id), n);
+      });
 
       notifySubscribers();
 
