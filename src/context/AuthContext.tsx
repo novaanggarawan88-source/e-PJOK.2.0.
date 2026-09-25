@@ -146,18 +146,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Pasang sinkronisasi realtime hanya jika pengguna sudah berhasil masuk (menghemat kuota pembacaan Firestore)
+  useEffect(() => {
+    if (currentUser) {
+      initRealtimeCloudSync();
+    }
+  }, [currentUser]);
+
   // Inisialisasi status sesi pengguna
   useEffect(() => {
     let isMounted = true;
 
     const initAuth = async () => {
       setLoading(true);
-
-      // Mulai sinkronisasi realtime cloud Firestore antar perangkat (HP & Laptop)
-      initRealtimeCloudSync();
-
-      // Siapkan seed pengguna awal di Firestore jika koleksi masih kosong
-      DatabaseService.seedPenggunaToFirestoreIfEmpty().catch(() => {});
 
       // Jika Firebase Auth tersedia, pasang listener status autentikasi
       if (isFirebaseConfigured() && auth) {
