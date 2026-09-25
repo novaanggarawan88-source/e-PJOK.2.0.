@@ -31,7 +31,7 @@ export const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || appletConfig.storageBucket || "penilaian-pjok.appspot.com",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletConfig.messagingSenderId || "123456789012",
   appId: import.meta.env.VITE_FIREBASE_APP_ID || appletConfig.appId || "1:123456789012:web:abcdef123456",
-  firestoreDatabaseId: (appletConfig as any).firestoreDatabaseId || ""
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || (appletConfig as any).firestoreDatabaseId || ""
 };
 
 /**
