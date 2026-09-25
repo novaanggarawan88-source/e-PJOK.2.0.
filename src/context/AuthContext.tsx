@@ -474,103 +474,73 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { success: false, message: 'Silakan masukkan username atau NIS.' };
     }
     const cleanLower = clean.toLowerCase();
+    const cleanNoSpace = cleanLower.replace(/[\s\-_.]/g, '');
 
-    // 1. Periksa dari koleksi 'pengguna' di Firestore jika konfigurasi aktif
-    if (db && isFirebaseConfigured()) {
-      try {
-        const snapPengguna = await getDocs(collection(db, 'pengguna'));
-        if (!snapPengguna.empty) {
-          const matchedDoc = snapPengguna.docs.find((d) => {
-            const data = d.data() as UserProfile;
-            const emailPrefix = data.email ? data.email.split('@')[0].toLowerCase() : '';
-            const isNovaMatch =
-              (cleanLower === 'novaanggarawan' || cleanLower === 'novaanggarawan88' || cleanLower === 'nova') &&
-              (data.email?.toLowerCase().includes('novaanggarawan') || data.nama?.toLowerCase().includes('nova') || data.nama?.toLowerCase().includes('anggarawan'));
-            const isGuruMatch = cleanLower === 'guru' && data.role === 'guru';
-            return (
-              isNovaMatch ||
-              isGuruMatch ||
-              (data.email && data.email.toLowerCase() === cleanLower) ||
-              emailPrefix === cleanLower ||
-              (data.nis && data.nis.toLowerCase() === cleanLower) ||
-              (data.nip && data.nip.toLowerCase() === cleanLower) ||
-              data.nama.toLowerCase() === cleanLower ||
-              data.uid.toLowerCase() === cleanLower
-            );
-          });
-
-          if (matchedDoc) {
-            const profile = matchedDoc.data() as UserProfile;
-
-            if (profile.status === 'nonaktif') {
-              return { success: false, message: 'Akun Anda berstatus nonaktif. Silakan hubungi Guru PJOK.' };
-            }
-
-            // Jika akun guru dan Firebase Auth tersedia dengan email, coba login via Firebase Auth
-            if (profile.role === 'guru' && profile.email && auth) {
-              try {
-                const cred = await signInWithEmailAndPassword(auth, profile.email, pass);
-                if (cred.user) {
-                  const verified = await checkRoleFromFirestorePengguna(cred.user);
-                  setCurrentUser(verified);
-                  localStorage.setItem(LS_SESSION_KEY, verified.uid);
-                  return { success: true };
-                }
-              } catch (fbErr) {
-                // Abaikan jika akun email belum didaftarkan di Firebase Auth, lanjut validasi password profil
-              }
-            }
-
-            // Validasi kata sandi dari profil
-            const expectedPass = profile.password || (profile.role === 'guru' ? 'guru123' : '123456');
-            if (expectedPass && pass !== expectedPass) {
-              return { success: false, message: 'Kata sandi tidak sesuai. Silakan periksa kembali.' };
-            }
-
-            setCurrentUser(profile);
-            localStorage.setItem(LS_SESSION_KEY, profile.uid);
-            return { success: true };
-          }
-        }
-      } catch (err) {
-        console.warn('Login Firestore pengguna lookup error:', err);
-      }
-    }
-
-    // 2. Jika input berupa email lengkap dan Firebase Auth aktif
-    if (clean.includes('@') && auth && isFirebaseConfigured()) {
-      const emailRes = await loginWithEmail(clean, pass);
-      if (emailRes.success) return emailRes;
-    }
-
-    // 3. Fallback pemeriksaan database lokal (Guru / Murid)
+    // Ambil daftar pengguna lengkap dari Cloud Firestore (pengguna & users) serta cache lokal
     const allUsers = await DatabaseService.getUsers();
-    const matchedUser = allUsers.find((u) => {
-      const emailPrefix = u.email ? u.email.split('@')[0].toLowerCase() : '';
-      const uNamaLower = u.nama.toLowerCase();
-      const firstWord = uNamaLower.split(' ')[0];
+
+    const isMatch = (u: UserProfile): boolean => {
+      if (!u) return false;
+      const uNamaLower = (u.nama || '').toLowerCase().trim();
+      const uNamaNoSpace = uNamaLower.replace(/[\s\-_.]/g, '');
+      const firstWord = uNamaLower.split(' ')[0] || '';
+      const email = (u.email || '').toLowerCase().trim();
+      const emailPrefix = email ? email.split('@')[0] : '';
+      const emailPrefixNoSpace = emailPrefix.replace(/[\s\-_.]/g, '');
+      const nis = (u.nis || '').toLowerCase().trim();
+      const nisNoSpace = nis.replace(/[\s\-_.]/g, '');
+      const nip = (u.nip || '').toLowerCase().trim();
+      const uid = (u.uid || '').toLowerCase().trim();
+
+      // Cocokkan Guru
       const isNovaMatch =
         (cleanLower === 'novaanggarawan' || cleanLower === 'novaanggarawan88' || cleanLower === 'nova') &&
-        (u.email?.toLowerCase().includes('novaanggarawan') || uNamaLower.includes('nova') || uNamaLower.includes('anggarawan'));
+        (email.includes('novaanggarawan') || uNamaLower.includes('nova') || uNamaLower.includes('anggarawan'));
       const isGuruMatch = cleanLower === 'guru' && u.role === 'guru';
-      return (
-        isNovaMatch ||
-        isGuruMatch ||
-        (u.email && u.email.toLowerCase() === cleanLower) ||
-        emailPrefix === cleanLower ||
-        (u.nis && u.nis.toLowerCase() === cleanLower) ||
-        (u.nip && u.nip.toLowerCase() === cleanLower) ||
-        uNamaLower === cleanLower ||
-        firstWord === cleanLower ||
-        u.uid.toLowerCase() === cleanLower
-      );
-    });
+
+      if (isNovaMatch || isGuruMatch) return true;
+
+      // Cocokkan NIS
+      if (nis && (nis === cleanLower || nisNoSpace === cleanNoSpace)) return true;
+
+      // Cocokkan Email atau Username sebelum @
+      if (email && (email === cleanLower || emailPrefix === cleanLower || emailPrefixNoSpace === cleanNoSpace)) return true;
+
+      // Cocokkan Nama Lengkap (dengan atau tanpa spasi: contoh "komangsukriyanti" cocok dengan "Komang Sukriyanti")
+      if (uNamaLower && (uNamaLower === cleanLower || uNamaNoSpace === cleanNoSpace)) return true;
+
+      // Cocokkan Nama Depan jika unik
+      if (firstWord && firstWord.length >= 3 && firstWord === cleanLower) return true;
+
+      // Cocokkan NIP atau UID
+      if ((nip && nip === cleanLower) || (uid && uid === cleanLower)) return true;
+
+      return false;
+    };
+
+    const matchedUser = allUsers.find(isMatch);
 
     if (matchedUser) {
       if (matchedUser.status === 'nonaktif') {
         return { success: false, message: 'Akun Anda berstatus nonaktif. Silakan hubungi Guru PJOK.' };
       }
 
+      // Jika akun guru dan Firebase Auth tersedia dengan email, coba autentikasi
+      if (matchedUser.role === 'guru' && matchedUser.email && auth && isFirebaseConfigured()) {
+        try {
+          const cred = await signInWithEmailAndPassword(auth, matchedUser.email, pass);
+          if (cred.user) {
+            const verified = await checkRoleFromFirestorePengguna(cred.user);
+            setCurrentUser(verified);
+            localStorage.setItem(LS_SESSION_KEY, verified.uid);
+            return { success: true };
+          }
+        } catch {
+          // Lanjut ke pengecekan sandi profil jika email belum terdaftar di Firebase Auth
+        }
+      }
+
+      // Validasi kata sandi profil
       const expectedPass = matchedUser.password || (matchedUser.role === 'guru' ? 'guru123' : '123456');
       const inputPass = pass || (matchedUser.role === 'murid' ? '123456' : '');
       if (expectedPass && inputPass !== expectedPass) {
@@ -580,6 +550,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setCurrentUser(matchedUser);
       localStorage.setItem(LS_SESSION_KEY, matchedUser.uid);
       return { success: true };
+    }
+
+    // Jika input berupa email lengkap dan Firebase Auth aktif
+    if (clean.includes('@') && auth && isFirebaseConfigured()) {
+      const emailRes = await loginWithEmail(clean, pass);
+      if (emailRes.success) return emailRes;
     }
 
     return {
