@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DatabaseService, subscribeToDataChanges } from '../../services/db';
+import { DatabaseService, subscribeToDataChanges, isClassDeleted, isDummyAccount } from '../../services/db';
 import { ClassItem, UserProfile } from '../../types';
 import {
   School,
@@ -26,12 +26,13 @@ export const ClassManagement: React.FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
 
   const loadData = async () => {
+    await DatabaseService.purgeDummyClasses();
     const [c, u] = await Promise.all([
       DatabaseService.getClasses(),
       DatabaseService.getUsers()
     ]);
-    setClasses(c);
-    setStudents(u.filter((x) => x.role === 'murid'));
+    setClasses(c.filter((cl) => !isClassDeleted(cl)));
+    setStudents(u.filter((x) => x.role === 'murid' && !isDummyAccount(x)));
   };
 
   useEffect(() => {

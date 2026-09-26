@@ -378,6 +378,60 @@ const setStored = <T>(key: string, data: T[]) => {
   }
 };
 
+const LS_DELETED_CLASSES = 'pjok_deleted_classes';
+const LS_DELETED_USERS = 'pjok_deleted_users';
+
+export const getDeletedClasses = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(LS_DELETED_CLASSES);
+    const defaults = ['class-x-1', 'class-xii-1', 'x 1', 'xii 1'];
+    if (!raw) return new Set(defaults);
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? [...defaults, ...arr.map((x: string) => String(x).toLowerCase().trim())] : defaults);
+  } catch {
+    return new Set(['class-x-1', 'class-xii-1', 'x 1', 'xii 1']);
+  }
+};
+
+export const addDeletedClass = (idOrName: string) => {
+  try {
+    const current = getDeletedClasses();
+    current.add(idOrName.toLowerCase().trim());
+    localStorage.setItem(LS_DELETED_CLASSES, JSON.stringify(Array.from(current)));
+  } catch {}
+};
+
+export const getDeletedUsers = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(LS_DELETED_USERS);
+    const defaults = ['1001', '1002', '1003', '1004', '1005'];
+    if (!raw) return new Set(defaults);
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? [...defaults, ...arr.map((x: string) => String(x).toLowerCase().trim())] : defaults);
+  } catch {
+    return new Set(['1001', '1002', '1003', '1004', '1005']);
+  }
+};
+
+export const addDeletedUser = (idOrNis: string) => {
+  try {
+    const current = getDeletedUsers();
+    current.add(idOrNis.toLowerCase().trim());
+    localStorage.setItem(LS_DELETED_USERS, JSON.stringify(Array.from(current)));
+  } catch {}
+};
+
+export const isClassDeleted = (c: Partial<ClassItem>): boolean => {
+  const dummyClassIds = ['class-x-1', 'class-xii-1'];
+  const dummyClassNames = ['x 1', 'xii 1'];
+  if (c.id && dummyClassIds.includes(c.id.toLowerCase().trim())) return true;
+  if (c.nama && dummyClassNames.includes(c.nama.toLowerCase().trim())) return true;
+  const deletedSet = getDeletedClasses();
+  if (c.id && deletedSet.has(c.id.toLowerCase().trim())) return true;
+  if (c.nama && deletedSet.has(c.nama.toLowerCase().trim())) return true;
+  return false;
+};
+
 export const isDummyAccount = (u: Partial<UserProfile>): boolean => {
   const dummyNis = ['1001', '1002', '1003', '1004', '1005'];
   const dummyEmails = [
@@ -398,6 +452,10 @@ export const isDummyAccount = (u: Partial<UserProfile>): boolean => {
   if (u.email && dummyEmails.includes(u.email.toLowerCase().trim())) return true;
   if (u.nama && dummyNames.includes(u.nama.toLowerCase().trim())) return true;
   if (u.uid && dummyNis.some((n) => u.uid?.includes(n))) return true;
+
+  const deletedSet = getDeletedUsers();
+  if (u.uid && deletedSet.has(u.uid.toLowerCase().trim())) return true;
+  if (u.nis && deletedSet.has(String(u.nis).toLowerCase().trim())) return true;
   return false;
 };
 
@@ -615,6 +673,11 @@ export const DatabaseService = {
   },
 
   async deleteUser(uid: string): Promise<void> {
+    const all = getStored<UserProfile>(LS_USERS, []);
+    const target = all.find((u) => u.uid === uid);
+    addDeletedUser(uid);
+    if (target?.nis) addDeletedUser(target.nis);
+
     if (isFirebaseConfigured() && db) {
       try {
         await Promise.all([
@@ -625,7 +688,6 @@ export const DatabaseService = {
         console.warn('Firestore deleteUser error:', err);
       }
     }
-    const all = getStored<UserProfile>(LS_USERS, []);
     const filtered = all.filter((u) => u.uid !== uid && !isDummyAccount(u));
     setStored(LS_USERS, filtered);
     notifySubscribers();
@@ -634,6 +696,13 @@ export const DatabaseService = {
   async deleteUsers(uids: string[]): Promise<void> {
     if (!uids || uids.length === 0) return;
     const uidSet = new Set(uids);
+    const all = getStored<UserProfile>(LS_USERS, []);
+    for (const uid of uids) {
+      addDeletedUser(uid);
+      const target = all.find((u) => u.uid === uid);
+      if (target?.nis) addDeletedUser(target.nis);
+    }
+
     if (isFirebaseConfigured() && db) {
       try {
         const promises: Promise<any>[] = [];
@@ -646,34 +715,58 @@ export const DatabaseService = {
         console.warn('Firestore deleteUsers error:', err);
       }
     }
-    const all = getStored<UserProfile>(LS_USERS, []);
     const filtered = all.filter((u) => !uidSet.has(u.uid) && !isDummyAccount(u));
     setStored(LS_USERS, filtered);
     notifySubscribers();
   },
 
   // --- CLASSES ---
-  async getClasses(): Promise<ClassItem[]> {
-    const localClasses = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
-    // Pastikan INITIAL_CLASSES (seperti XI 1) selalu terdaftar jika belum ada
-    let hasNewClasses = false;
-    for (const ic of INITIAL_CLASSES) {
-      if (!localClasses.some((c) => c.nama.toLowerCase() === ic.nama.toLowerCase() || c.id === ic.id)) {
-        localClasses.push(ic);
-        hasNewClasses = true;
+  async purgeDummyClasses(): Promise<void> {
+    if (isFirebaseConfigured() && db) {
+      try {
+        const snap = await getDocs(collection(db, 'classes')).catch(() => null);
+        if (snap) {
+          const promises: Promise<any>[] = [];
+          for (const d of snap.docs) {
+            const data = d.data() as ClassItem;
+            if (isClassDeleted(data) || isClassDeleted({ id: d.id })) {
+              promises.push(deleteDoc(doc(db, 'classes', d.id)).catch(() => {}));
+            }
+          }
+          await Promise.all(promises);
+        }
+      } catch (e) {
+        console.warn('purgeDummyClasses error:', e);
       }
     }
-    if (hasNewClasses) {
-      setStored(LS_CLASSES, localClasses);
-    }
+    const all = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
+    const filtered = all.filter((c) => !isClassDeleted(c));
+    setStored(LS_CLASSES, filtered);
+    notifySubscribers();
+  },
+
+  async getClasses(): Promise<ClassItem[]> {
+    const rawLocal = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
+    const localClasses = rawLocal.filter((c) => !isClassDeleted(c));
+
     if (isFirebaseConfigured() && db) {
       try {
         const snap = await getDocs(collection(db, 'classes'));
         if (!snap.empty) {
-          const cloudClasses = snap.docs.map((d) => d.data() as ClassItem);
+          const cloudClasses: ClassItem[] = [];
+          for (const d of snap.docs) {
+            const c = d.data() as ClassItem;
+            if (isClassDeleted(c) || isClassDeleted({ id: d.id })) {
+              deleteDoc(doc(db, 'classes', d.id)).catch(() => {});
+              continue;
+            }
+            cloudClasses.push({ ...c, id: c.id || d.id });
+          }
+
           const map = new Map<string, ClassItem>();
           cloudClasses.forEach((c) => map.set(c.id, c));
           localClasses.forEach((lc) => {
+            if (isClassDeleted(lc)) return;
             const cc = map.get(lc.id);
             if (!cc) {
               map.set(lc.id, lc);
@@ -685,18 +778,48 @@ export const DatabaseService = {
               }
             }
           });
-          const merged = Array.from(map.values());
+
+          // Pastikan INITIAL_CLASSES (XI 1 s/d XI 9) terdaftar jika belum pernah dihapus
+          for (const ic of INITIAL_CLASSES) {
+            if (isClassDeleted(ic)) continue;
+            const exists = Array.from(map.values()).some(
+              (c) => c.id === ic.id || c.nama.toLowerCase() === ic.nama.toLowerCase()
+            );
+            if (!exists) {
+              map.set(ic.id, ic);
+            }
+          }
+
+          const merged = Array.from(map.values()).filter((c) => !isClassDeleted(c));
           try {
             localStorage.setItem(LS_CLASSES, JSON.stringify(merged));
           } catch {}
           return merged;
         }
-        return localClasses;
       } catch (err) {
         console.warn('Firestore getClasses failed, using local:', err);
       }
     }
-    return localClasses;
+
+    // Local fallback: pastikan INITIAL_CLASSES yang belum dihapus ada
+    const mapLocal = new Map<string, ClassItem>();
+    localClasses.forEach((c) => {
+      if (!isClassDeleted(c)) mapLocal.set(c.id, c);
+    });
+
+    for (const ic of INITIAL_CLASSES) {
+      if (isClassDeleted(ic)) continue;
+      const exists = Array.from(mapLocal.values()).some(
+        (c) => c.id === ic.id || c.nama.toLowerCase() === ic.nama.toLowerCase()
+      );
+      if (!exists) {
+        mapLocal.set(ic.id, ic);
+      }
+    }
+
+    const cleaned = Array.from(mapLocal.values()).filter((c) => !isClassDeleted(c));
+    setStored(LS_CLASSES, cleaned);
+    return cleaned;
   },
 
   async saveClass(item: ClassItem): Promise<void> {
@@ -729,7 +852,13 @@ export const DatabaseService = {
 
   async deleteClass(id: string): Promise<void> {
     const all = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
-    const filtered = all.filter((c) => c.id !== id);
+    const target = all.find((c) => c.id === id);
+    addDeletedClass(id);
+    if (target?.nama) {
+      addDeletedClass(target.nama);
+    }
+
+    const filtered = all.filter((c) => c.id !== id && !isClassDeleted(c));
     setStored(LS_CLASSES, filtered);
     notifySubscribers();
 

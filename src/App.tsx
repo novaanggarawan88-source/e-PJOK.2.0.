@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Navbar } from './components/Navbar';
@@ -11,10 +11,16 @@ import { LoginPage } from './pages/LoginPage';
 import { TeacherView } from './pages/TeacherView';
 import { StudentView } from './pages/StudentView';
 import { AppLogo } from './components/AppLogo';
+import { DatabaseService } from './services/db';
 
 const MainApp: React.FC = () => {
   const { user, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    DatabaseService.purgeDummyAccounts().catch(() => {});
+    DatabaseService.purgeDummyClasses().catch(() => {});
+  }, []);
 
   if (loading) {
     return (

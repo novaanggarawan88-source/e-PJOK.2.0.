@@ -20,8 +20,6 @@ export const INITIAL_CLASSES: ClassItem[] = [
   { id: 'class-xi-7', nama: 'XI 7', tingkat: 'XI', jurusan: 'Umum', status: 'aktif' },
   { id: 'class-xi-8', nama: 'XI 8', tingkat: 'XI', jurusan: 'Umum', status: 'aktif' },
   { id: 'class-xi-9', nama: 'XI 9', tingkat: 'XI', jurusan: 'Umum', status: 'aktif' },
-  { id: 'class-x-1', nama: 'X 1', tingkat: 'X', jurusan: 'Umum', status: 'aktif' },
-  { id: 'class-xii-1', nama: 'XII 1', tingkat: 'XII', jurusan: 'Umum', status: 'aktif' },
 ];
 
 export const INITIAL_USERS: UserProfile[] = [
