@@ -4,11 +4,13 @@ import { AppLogo } from './AppLogo';
 import { ThemeToggle } from './ThemeToggle';
 import { NotificationBell } from './NotificationBell';
 import { CloudSyncModal } from './CloudSyncModal';
+import { isFirebaseConfigured } from '../lib/firebase';
 import {
   Menu,
   X,
   Flame,
-  RefreshCw
+  RefreshCw,
+  FileJson
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -66,18 +68,36 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen }
               {/* Lonceng Notifikasi Sederhana untuk Siswa dan Guru */}
               {currentUser && <NotificationBell />}
 
-              {/* Tombol Sinkronisasi Multi-Perangkat (Laptop & HP) untuk Guru */}
+              {/* Tombol Sinkronisasi / Cadangan Data untuk Guru */}
               {role === 'guru' && (
                 <button
                   type="button"
                   onClick={() => setShowSyncModal(true)}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-emerald-50 hover:bg-emerald-100/80 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700/80 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-300 shadow-xs cursor-pointer transition-all"
-                  title="Klik untuk Sinkronkan Data Laptop & HP atau Cadangkan .json"
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold shadow-xs cursor-pointer transition-all ${
+                    isFirebaseConfigured()
+                      ? 'bg-emerald-50 hover:bg-emerald-100/80 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700/80 text-emerald-800 dark:text-emerald-300'
+                      : 'bg-blue-50 hover:bg-blue-100/80 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 border border-blue-300 dark:border-blue-700/80 text-blue-800 dark:text-blue-300'
+                  }`}
+                  title={
+                    isFirebaseConfigured()
+                      ? 'Klik untuk Sinkronkan Data Laptop & HP atau Cadangkan .json'
+                      : 'Klik untuk Cadangkan atau Pasang Data (.json)'
+                  }
                 >
-                  <RefreshCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
-                  <span className="hidden sm:inline">Sinkron Laptop & HP</span>
-                  <span className="sm:hidden">Sinkron</span>
+                  {isFirebaseConfigured() ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+                      <span className="hidden sm:inline">Sinkron Laptop & HP</span>
+                      <span className="sm:hidden">Sinkron</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileJson className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                      <span className="hidden sm:inline">Cadangan Data (.json)</span>
+                      <span className="sm:hidden">Cadangan</span>
+                    </>
+                  )}
                 </button>
               )}
               <ThemeToggle />

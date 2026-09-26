@@ -452,6 +452,16 @@ export const DatabaseService = {
           }
         }
 
+        // Pastikan INITIAL_USERS (seperti 31 murid XI 1) juga terdaftar jika belum ada
+        for (const initU of INITIAL_USERS) {
+          const exists = Array.from(finalMap.values()).some(
+            (u) => u.uid === initU.uid || (u.nis && initU.nis && u.nis === initU.nis)
+          );
+          if (!exists) {
+            finalMap.set(initU.uid, initU);
+          }
+        }
+
         const mergedUsers = Array.from(finalMap.values());
         try {
           localStorage.setItem(LS_USERS, JSON.stringify(mergedUsers));
@@ -462,9 +472,23 @@ export const DatabaseService = {
       }
     }
 
-    if (localUsers.length === 0) {
-      setStored(LS_USERS, INITIAL_USERS);
-      return INITIAL_USERS;
+    // Merge any INITIAL_USERS (seperti 31 murid XI 1) yang belum ada di localUsers
+    const localMap = new Map<string, UserProfile>();
+    localUsers.forEach((u) => localMap.set(u.uid, u));
+    let hasNewInitials = false;
+
+    for (const initU of INITIAL_USERS) {
+      const existsByUid = localMap.has(initU.uid);
+      const existsByNis = initU.nis && localUsers.some((lu) => lu.nis === initU.nis);
+      if (!existsByUid && !existsByNis) {
+        localUsers.push(initU);
+        localMap.set(initU.uid, initU);
+        hasNewInitials = true;
+      }
+    }
+
+    if (hasNewInitials || localUsers.length === 0) {
+      setStored(LS_USERS, localUsers);
     }
     return localUsers;
   },
@@ -548,6 +572,17 @@ export const DatabaseService = {
   // --- CLASSES ---
   async getClasses(): Promise<ClassItem[]> {
     const localClasses = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
+    // Pastikan INITIAL_CLASSES (seperti XI 1) selalu terdaftar jika belum ada
+    let hasNewClasses = false;
+    for (const ic of INITIAL_CLASSES) {
+      if (!localClasses.some((c) => c.nama.toLowerCase() === ic.nama.toLowerCase() || c.id === ic.id)) {
+        localClasses.push(ic);
+        hasNewClasses = true;
+      }
+    }
+    if (hasNewClasses) {
+      setStored(LS_CLASSES, localClasses);
+    }
     if (isFirebaseConfigured() && db) {
       try {
         const snap = await getDocs(collection(db, 'classes'));

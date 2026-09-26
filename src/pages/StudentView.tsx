@@ -182,12 +182,18 @@ export const StudentView: React.FC<StudentViewProps> = ({
                             </span>
                             <span
                               className={`px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold ${
-                                isDone ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                                isDone
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                                  : evaluatedCount === 0
+                                  ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-300 dark:border-rose-800 animate-pulse'
+                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
                               }`}
                             >
                               {isDone
                                 ? `Selesai (${evaluatedCount}/${reqCount} Teman)`
-                                : `Belum Selesai (${evaluatedCount}/${reqCount} Teman)`}
+                                : evaluatedCount === 0
+                                ? `Belum Mulai (0/${reqCount} Teman)`
+                                : `Belum Selesai (${evaluatedCount}/${reqCount} Teman - Kurang ${reqCount - evaluatedCount})`}
                             </span>
                           </div>
 

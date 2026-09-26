@@ -35,9 +35,20 @@ export const firebaseConfig = {
 };
 
 /**
- * Memeriksa apakah Firebase sudah dikonfigurasi dengan kredensial yang valid.
+ * Kontrol Status Firebase Cloud
+ * Diatur ke 'false' agar aplikasi berjalan dalam Mode Mandiri / Lokal Cepat (Bebas Kuota 100%).
+ * Dapat diaktifkan kembali kapan saja dengan mengubah nilai ini menjadi 'true'.
+ */
+export const FIREBASE_ENABLED = false;
+
+/**
+ * Memeriksa apakah Firebase sudah dikonfigurasi dan diaktifkan.
  */
 export const isFirebaseConfigured = (): boolean => {
+  if (!FIREBASE_ENABLED) {
+    return false;
+  }
+
   try {
     const savedConfig = localStorage.getItem('pjok_custom_firebase_config');
     if (savedConfig) {

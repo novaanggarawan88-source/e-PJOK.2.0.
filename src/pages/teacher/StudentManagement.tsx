@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DatabaseService, subscribeToDataChanges } from '../../services/db';
 import { UserProfile, ClassItem } from '../../types';
 import {
@@ -163,28 +163,33 @@ export const StudentManagement: React.FC = () => {
   };
 
   const CSV_TEMPLATE_CONTENT =
-    'Nama,NIS,Kelas,No Absen,Email/Username,Password\n' +
-    'Andi Pratama,1001,XI 7,01,andi@pjok.sch.id,123456\n' +
-    'Budi Santoso,1002,XI 7,02,budi@pjok.sch.id,123456\n' +
-    'Citra Lestari,1003,XI 7,03,citra@pjok.sch.id,123456\n' +
-    'Dewi Anggraini,1004,XI 7,04,dewi@pjok.sch.id,123456\n' +
-    'Eko Prasetyo,1005,XI 7,05,eko@pjok.sch.id,123456\n';
+    'Nama, NIS, Kelas, No Absen, Username, Password\n' +
+    'Gede Aditya Peratama, 7504, XI 1, 1, gedeadityaperatama, murid123\n' +
+    'Gede Eric Surya Purnama, 7474, XI 1, 2, gedeericsuryapurnama, murid123\n' +
+    'Gede Reynard Dharma Mahardika, 7440, XI 1, 3, gedereynarddharmamahardika, murid123\n' +
+    'I Gede Mukiadi, 7478, XI 1, 4, igedemukiadi, murid123\n' +
+    'I Komang Nova Andriana, 7612, XI 1, 5, ikomangnovaandriana, murid123\n';
 
   const handleDownloadCsvTemplate = () => {
     const blob = new Blob([CSV_TEMPLATE_CONTENT], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'format_data_murid_pjok.csv');
+    link.setAttribute('download', 'format_data_murid_perkelas.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showNotice('Format file CSV murid berhasil diunduh');
+    showNotice('Format CSV data murid berhasil diunduh');
   };
 
   const handleCopyTemplate = () => {
     navigator.clipboard.writeText(CSV_TEMPLATE_CONTENT);
     showNotice('Format template CSV disalin ke clipboard');
+  };
+
+  const handleCopyHeaderOnly = () => {
+    navigator.clipboard.writeText('Nama, NIS, Kelas, No Absen, Username, Password');
+    showNotice('Header format disalin: Nama, NIS, Kelas, No Absen, Username, Password');
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,29 +206,134 @@ export const StudentManagement: React.FC = () => {
     reader.readAsText(file);
   };
 
+  // Hitung jumlah baris murid yang terdeteksi valid dari teks yang ditempel
+  const detectedStudentsCount = useMemo(() => {
+    if (!csvText.trim()) return 0;
+    const lines = csvText.trim().split(/\r?\n/);
+    let count = 0;
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      let delimiter = ',';
+      if (line.includes('\t')) delimiter = '\t';
+      else if (line.includes(';') && !line.includes(',')) delimiter = ';';
+      let parts = line.split(delimiter).map((p) => p.trim().replace(/^["']|["']$/g, ''));
+      if (parts.length === 0) continue;
+      if (/^\d+$/.test(parts[0]) && parts.length >= 4) parts.shift();
+      if (parts.length >= 2) {
+        let namaVal = parts[0].replace(/^\d+[\.\-\)]\s*/, '').trim();
+        const lower = namaVal.toLowerCase();
+        if (
+          lower === 'nama' ||
+          lower === 'nama murid' ||
+          lower === 'nama siswa' ||
+          lower.includes('nama lengkap')
+        ) {
+          continue;
+        }
+        if (namaVal) count++;
+      }
+    }
+    return count;
+  }, [csvText]);
+
   const handleImportCsv = async () => {
     if (!csvText.trim()) return;
-    const lines = csvText.trim().split('\n');
+    const lines = csvText.trim().split(/\r?\n/);
     let importedCount = 0;
 
-    for (const line of lines) {
-      // Expecting format: Nama, NIS, Kelas, No Absen, Email, Password (opsional)
-      const parts = line.split(',').map((p) => p.trim());
-      if (parts.length >= 3) {
-        const [namaVal, nisVal, kelasVal, noAbsenVal, emailVal, passVal] = parts;
-        if (namaVal.toLowerCase() === 'nama' || namaVal.toLowerCase().includes('nama')) continue; // Header row
+    const [currentClasses, currentStudents] = await Promise.all([
+      DatabaseService.getClasses(),
+      DatabaseService.getUsers()
+    ]);
+    const existingClassesMap = new Map(currentClasses.map((c) => [c.nama.toLowerCase(), c]));
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      // Detect separator: Tab (copy-paste from Excel/Sheets), Semicolon (;), or Comma (,)
+      let delimiter = ',';
+      if (line.includes('\t')) {
+        delimiter = '\t';
+      } else if (line.includes(';') && !line.includes(',')) {
+        delimiter = ';';
+      }
+
+      let parts = line.split(delimiter).map((p) => p.trim().replace(/^["']|["']$/g, ''));
+      if (parts.length === 0) continue;
+
+      // Remove leading numbering if present in column 1 (e.g. "1. Budi Santoso" -> "Budi Santoso", or "1" as separate number column)
+      if (/^\d+$/.test(parts[0]) && parts.length >= 4) {
+        // First column was just a row number like 1, 2, 3
+        parts.shift();
+      }
+
+      if (parts.length >= 2) {
+        let [namaVal, nisVal, kelasVal, noAbsenVal, emailVal, passVal] = parts;
+        if (!namaVal) continue;
+
+        // Clean leading numbering like "1. Andi" -> "Andi"
+        namaVal = namaVal.replace(/^\d+[\.\-\)]\s*/, '').trim();
+
+        // Skip header line
+        const lowerName = namaVal.toLowerCase();
+        if (
+          lowerName === 'nama' ||
+          lowerName === 'nama murid' ||
+          lowerName === 'nama siswa' ||
+          lowerName.includes('nama lengkap')
+        ) {
+          continue;
+        }
+
+        const cleanNis = (nisVal || '').trim();
+        const cleanKelas = (kelasVal || 'XI 1').trim();
+        const cleanAbsen = (noAbsenVal || '').trim();
+        const cleanUsername = (emailVal || '').trim();
+        const cleanEmail = cleanUsername
+          ? cleanUsername.includes('@')
+            ? cleanUsername
+            : `${cleanUsername}@pjok.sch.id`
+          : `${namaVal.toLowerCase().replace(/[^a-z0-9]/g, '') || cleanNis || 'siswa'}@pjok.sch.id`;
+        const cleanPass = (passVal || '').trim() || 'murid123';
+
+        // Auto-register kelas jika belum ada di database
+        if (cleanKelas && !existingClassesMap.has(cleanKelas.toLowerCase())) {
+          const newClass: ClassItem = {
+            id: `class-${cleanKelas.toLowerCase().replace(/\s+/g, '-')}`,
+            nama: cleanKelas,
+            tingkat: cleanKelas.split(' ')[0] || 'XI',
+            jurusan: 'Umum',
+            status: 'aktif',
+            createdAt: new Date().toISOString()
+          };
+          await DatabaseService.saveClass(newClass);
+          existingClassesMap.set(cleanKelas.toLowerCase(), newClass);
+        }
+
+        // Cek apakah siswa sudah terdaftar (berdasarkan NIS atau nama sama) untuk update, hindari duplikasi
+        const existingStudent = currentStudents.find(
+          (s) =>
+            s.role === 'murid' &&
+            ((cleanNis && s.nis === cleanNis) ||
+              s.nama.toLowerCase() === namaVal.toLowerCase() ||
+              (cleanEmail && s.email.toLowerCase() === cleanEmail.toLowerCase()))
+        );
 
         const newStudent: UserProfile = {
-          uid: `murid-import-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          uid: existingStudent
+            ? existingStudent.uid
+            : `murid-import-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
           nama: namaVal,
-          nis: nisVal || '',
-          kelas: kelasVal || 'XI 7',
-          nomorAbsen: noAbsenVal || '',
-          email: emailVal || `${namaVal.toLowerCase().replace(/\s+/g, '')}@pjok.sch.id`,
-          password: passVal || '123456',
+          nis: cleanNis,
+          kelas: cleanKelas,
+          nomorAbsen: cleanAbsen,
+          email: cleanEmail,
+          password: cleanPass,
           role: 'murid',
           status: 'aktif',
-          createdAt: new Date().toISOString(),
+          createdAt: existingStudent?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
         await DatabaseService.saveUser(newStudent);
@@ -231,9 +341,10 @@ export const StudentManagement: React.FC = () => {
       }
     }
 
+    await loadData();
     setIsImportOpen(false);
     setCsvText('');
-    showNotice(`Berhasil mengimpor ${importedCount} data murid dengan kredensial!`);
+    showNotice(`Berhasil memproses & menyimpan ${importedCount} data murid beserta username & password!`);
   };
 
   const showNotice = (msg: string) => {
@@ -771,13 +882,13 @@ export const StudentManagement: React.FC = () => {
 
       {/* Template Format CSV Info Modal */}
       {isTemplateModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="w-5 h-5 text-blue-600" />
                 <h3 className="font-extrabold text-slate-800 text-lg font-heading">
-                  Format Berkas CSV Data Murid
+                  Format Teks / CSV Data Murid Per Kelas
                 </h3>
               </div>
               <button
@@ -790,22 +901,58 @@ export const StudentManagement: React.FC = () => {
 
             <div className="mt-4 space-y-4 text-xs">
               <p className="text-slate-600 leading-relaxed">
-                Anda dapat membuat berkas di Microsoft Excel, Google Sheets, atau Notepad dengan format kolom berikut:
+                Bapak/Ibu dapat mengetik atau menyalin data murid per kelas langsung dari Excel, Google Sheets, Catatan HP, atau WhatsApp dengan susunan 6 kolom berikut:
               </p>
 
-              <div className="p-3 bg-slate-900 text-slate-200 rounded-2xl font-mono text-[11px] overflow-x-auto whitespace-pre">
-                {CSV_TEMPLATE_CONTENT}
+              <div className="p-3 bg-blue-50 border border-blue-200/80 rounded-2xl flex items-center justify-between gap-2">
+                <div className="font-mono text-xs font-bold text-blue-900 truncate">
+                  Nama, NIS, Kelas, No Absen, Username, Password
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyHeaderOnly}
+                  className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[11px] shadow-xs cursor-pointer transition-colors"
+                  title="Salin judul kolom"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>Salin Header</span>
+                </button>
               </div>
 
-              <div className="space-y-1.5 text-slate-600">
-                <p><strong>Penjelasan Kolom CSV:</strong></p>
-                <ul className="list-disc pl-5 space-y-1 text-slate-500">
-                  <li><strong>Nama:</strong> Nama lengkap murid (wajib)</li>
-                  <li><strong>NIS:</strong> Nomor Induk Siswa (wajib/unik, dapat dipakai login)</li>
-                  <li><strong>Kelas:</strong> Contoh &ldquo;XI 7&rdquo; atau &ldquo;X 1&rdquo;</li>
-                  <li><strong>No Absen:</strong> Nomor presensi siswa (contoh &ldquo;01&rdquo;)</li>
-                  <li><strong>Email/Username:</strong> Email login siswa</li>
-                  <li><strong>Password:</strong> Kata sandi (jika kosong, otomatis diatur &ldquo;123456&rdquo;)</li>
+              <div>
+                <p className="font-bold text-slate-700 mb-1.5">Contoh Format Baris Data (Kelas XI 1):</p>
+                <div className="p-3.5 bg-slate-900 text-slate-200 rounded-2xl font-mono text-[11px] overflow-x-auto whitespace-pre leading-relaxed border border-slate-800">
+                  {CSV_TEMPLATE_CONTENT}
+                </div>
+              </div>
+
+              <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 text-slate-700">
+                <p className="font-bold text-slate-900">Penjelasan Setiap Kolom (Dipisahkan Tanda Koma):</p>
+                <ul className="space-y-1.5 pl-1 text-slate-600">
+                  <li className="flex items-start gap-1.5">
+                    <span className="font-bold text-blue-600 shrink-0">1. Nama:</span>
+                    <span>Nama lengkap siswa (Contoh: <code className="text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">Gede Aditya Peratama</code>)</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="font-bold text-blue-600 shrink-0">2. NIS:</span>
+                    <span>Nomor Induk Siswa (Contoh: <code className="text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">7504</code>) — Siswa bisa masuk menggunakan nomor ini</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="font-bold text-blue-600 shrink-0">3. Kelas:</span>
+                    <span>Nama rombel (Contoh: <code className="text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">XI 1</code> atau <code className="text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">XI 7</code>)</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="font-bold text-blue-600 shrink-0">4. No Absen:</span>
+                    <span>Nomor urut presensi siswa (Contoh: <code className="text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">1</code>)</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="font-bold text-blue-600 shrink-0">5. Username:</span>
+                    <span>Username akun siswa (Contoh: <code className="text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">gedeadityaperatama</code>) — Siswa juga bisa masuk menggunakan username ini</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="font-bold text-blue-600 shrink-0">6. Password:</span>
+                    <span>Kata sandi masuk siswa (Contoh: <code className="text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">murid123</code> atau <code className="text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">123456</code>)</span>
+                  </li>
                 </ul>
               </div>
 
@@ -816,7 +963,7 @@ export const StudentManagement: React.FC = () => {
                   className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold cursor-pointer"
                 >
                   <Copy className="w-4 h-4 text-slate-500" />
-                  <span>Salin Teks Format</span>
+                  <span>Salin Contoh Lengkap</span>
                 </button>
                 <button
                   type="button"
@@ -832,16 +979,19 @@ export const StudentManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Import CSV Modal */}
+      {/* Import / Paste Direct Modal */}
       {isImportOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="w-5 h-5 text-blue-600" />
-                <h3 className="font-extrabold text-slate-800 text-lg font-heading">
-                  Import Data Murid dari CSV
-                </h3>
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-lg font-heading leading-tight">
+                    Import / Tempel Data Murid
+                  </h3>
+                  <p className="text-xs text-slate-500">Salin & tempel teks langsung per kelas atau unggah berkas</p>
+                </div>
               </div>
               <button
                 onClick={() => setIsImportOpen(false)}
@@ -851,28 +1001,37 @@ export const StudentManagement: React.FC = () => {
               </button>
             </div>
 
-            <div className="mt-4 space-y-3">
-              <div className="p-3 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="mt-4 space-y-3.5">
+              <div className="p-3 bg-blue-50/80 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div>
-                  <p className="text-xs font-bold text-blue-950">Format Kolom CSV / Excel:</p>
+                  <p className="text-xs font-bold text-blue-950">Urutan Kolom:</p>
                   <code className="text-[11px] text-blue-700 font-mono">
-                    Nama, NIS, Kelas, No Absen, Email, Password
+                    Nama, NIS, Kelas, No Absen, Username, Password
                   </code>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleDownloadCsvTemplate}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Unduh Contoh CSV</span>
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleCopyHeaderOnly}
+                    className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  >
+                    Salin Header
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadCsvTemplate}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Unduh CSV</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between gap-2 pt-1">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                 <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors">
                   <Upload className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Pilih Berkas .CSV dari Perangkat</span>
+                  <span>Unggah Berkas .CSV</span>
                   <input
                     type="file"
                     accept=".csv,text/csv"
@@ -881,26 +1040,64 @@ export const StudentManagement: React.FC = () => {
                   />
                 </label>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCsvText(
-                      `Fajar Nugroho, 1006, XI 7, 06, fajar@pjok.sch.id, 123456\nGilang Ramadhan, 1007, XI 7, 07, gilang@pjok.sch.id, 123456\nHana Pratiwi, 1008, XI 7, 08, hana@pjok.sch.id, 123456`
-                    );
-                  }}
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 underline cursor-pointer"
-                >
-                  + Muat Sampel Teks
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCsvText(
+                        `Gede Aditya Peratama, 7504, XI 1, 1, gedeadityaperatama, murid123\n` +
+                        `Gede Eric Surya Purnama, 7474, XI 1, 2, gedeericsuryapurnama, murid123\n` +
+                        `Gede Reynard Dharma Mahardika, 7440, XI 1, 3, gedereynarddharmamahardika, murid123`
+                      );
+                    }}
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                  >
+                    + Muat Contoh XI 1
+                  </button>
+                  {csvText && (
+                    <button
+                      type="button"
+                      onClick={() => setCsvText('')}
+                      className="text-xs font-semibold text-slate-400 hover:text-rose-600 cursor-pointer"
+                    >
+                      Bersihkan
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <textarea
-                value={csvText}
-                onChange={(e) => setCsvText(e.target.value)}
-                placeholder={`Atau tempel (paste) baris CSV di sini:\nNama, NIS, Kelas, No Absen, Email, Password\nAndi Pratama, 1001, XI 7, 01, andi@pjok.sch.id, 123456\nBudi Santoso, 1002, XI 7, 02, budi@pjok.sch.id, 123456`}
-                rows={6}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono text-slate-800 focus:outline-hidden focus:bg-white focus:border-blue-600"
-              />
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Area Ketik / Tempel (Paste) Teks Murid:
+                  </label>
+                  {detectedStudentsCount > 0 ? (
+                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg font-bold text-[11px] flex items-center gap-1 border border-emerald-200">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      {detectedStudentsCount} data murid terdeteksi
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 text-[11px]">
+                      Satu baris untuk setiap murid
+                    </span>
+                  )}
+                </div>
+
+                <textarea
+                  value={csvText}
+                  onChange={(e) => setCsvText(e.target.value)}
+                  placeholder={`Ketik atau tempel langsung di sini (bisa per kelas):\nNama, NIS, Kelas, No Absen, Username, Password\n\nContoh:\nGede Aditya Peratama, 7504, XI 1, 1, gedeadityaperatama, murid123\nGede Eric Surya Purnama, 7474, XI 1, 2, gedeericsuryapurnama, murid123`}
+                  rows={8}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-hidden focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 leading-relaxed"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
+                <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p>
+                  <strong>Tips:</strong> Jika kelas belum terdaftar, sistem akan otomatis membuatkan kelas baru. Jika siswa sudah ada (berdasarkan NIS/Nama), data mereka akan diperbarui tanpa membuat duplikat.
+                </p>
+              </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
@@ -912,10 +1109,12 @@ export const StudentManagement: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  disabled={!csvText.trim() || detectedStudentsCount === 0}
                   onClick={handleImportCsv}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-600/20 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md shadow-blue-600/20 cursor-pointer flex items-center gap-1.5"
                 >
-                  Proses Import Data Murid
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Proses Import ({detectedStudentsCount} Murid)</span>
                 </button>
               </div>
             </div>
