@@ -36,15 +36,21 @@ export const firebaseConfig = {
 
 /**
  * Kontrol Status Firebase Cloud
- * Diatur ke 'false' agar aplikasi berjalan dalam Mode Mandiri / Lokal Cepat (Bebas Kuota 100%).
- * Dapat diaktifkan kembali kapan saja dengan mengubah nilai ini menjadi 'true'.
+ * Diatur ke 'true' untuk mengaktifkan sinkronisasi Cloud Firestore.
+ * Pengguna juga dapat menonaktifkan/mengaktifkannya kembali secara instan.
  */
-export const FIREBASE_ENABLED = false;
+export const FIREBASE_ENABLED = true;
 
 /**
  * Memeriksa apakah Firebase sudah dikonfigurasi dan diaktifkan.
  */
 export const isFirebaseConfigured = (): boolean => {
+  try {
+    const override = localStorage.getItem('pjok_firebase_enabled');
+    if (override === 'false') return false;
+    if (override === 'true') return true;
+  } catch {}
+
   if (!FIREBASE_ENABLED) {
     return false;
   }

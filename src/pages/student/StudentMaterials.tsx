@@ -5,9 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import { formatEmbedUrl, isGoogleAppsScriptUrl } from '../teacher/MaterialManagement';
 import {
   BookOpen,
-  Lock,
-  Unlock,
-  Key,
   Clock,
   CheckCircle2,
   ArrowLeft,
@@ -31,11 +28,6 @@ export const StudentMaterials: React.FC = () => {
   const [activeMaterial, setActiveMaterial] = useState<MaterialItem | null>(null);
   const [activeViewUrl, setActiveViewUrl] = useState<string>('');
   const [studentTab, setStudentTab] = useState<'frame' | 'columns'>('frame');
-
-  // PIN unlock state per material
-  const [pinInputs, setPinInputs] = useState<{ [materialId: string]: string }>({});
-  const [pinError, setPinError] = useState<{ [materialId: string]: string }>({});
-  const [unlockedByPin, setUnlockedByPin] = useState<{ [materialId: string]: boolean }>({});
 
   const [hasMarkedDone, setHasMarkedDone] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,23 +68,6 @@ export const StudentMaterials: React.FC = () => {
 
     return () => clearInterval(timer);
   }, [activeMaterial]);
-
-  const handleUnlockWithPin = (item: MaterialItem) => {
-    const entered = (pinInputs[item.id] || '').trim().toUpperCase();
-    const correctPin = (item.kodeKunci || '').trim().toUpperCase();
-
-    if (!entered) {
-      setPinError({ ...pinError, [item.id]: 'Masukkan PIN kunci terlebih dahulu!' });
-      return;
-    }
-
-    if (entered === correctPin) {
-      setUnlockedByPin({ ...unlockedByPin, [item.id]: true });
-      setPinError({ ...pinError, [item.id]: '' });
-    } else {
-      setPinError({ ...pinError, [item.id]: 'PIN salah! Tanyakan pada Guru PJOK di kelas.' });
-    }
-  };
 
   const handleOpenMaterial = (item: MaterialItem) => {
     setActiveMaterial(item);
@@ -339,6 +314,8 @@ export const StudentMaterials: React.FC = () => {
   }
 
   const filtered = materials.filter((m) => {
+    const isActive = m.status === 'aktif' || m.status === 'buka' || !m.status;
+    if (!isActive) return false;
     const matchesCategory = selectedCategory === 'all' || m.kategori === selectedCategory;
     const matchesSearch =
       m.judul.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -418,9 +395,6 @@ export const StudentMaterials: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {filtered.map((item) => {
-            const isUnlockedByTeacher = item.status === 'buka';
-            const isUnlockedLocally = unlockedByPin[item.id] === true;
-            const canAccess = isUnlockedByTeacher || isUnlockedLocally;
             const isDone = myProgress.some((p) => p.materialId === item.id);
 
             return (
@@ -507,63 +481,17 @@ export const StudentMaterials: React.FC = () => {
                 </div>
 
                 {/* Bottom Action Area */}
-                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  {canAccess ? (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => handleOpenMaterial(item)}
-                        className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-extrabold shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <BookOpen className="w-4 h-4" />
-                        <span>Buka & Pelajari Materi</span>
-                      </button>
-                      <p className="text-[11px] text-center text-slate-400">
-                        Materi akan dibuka langsung di dalam aplikasi.
-                      </p>
-                    </div>
-                  ) : (
-                    /* Locked View with PIN input */
-                    <div className="bg-amber-50/80 dark:bg-amber-950/40 p-3.5 rounded-2xl border border-amber-200/80 dark:border-amber-800/50 space-y-2.5">
-                      <div className="flex items-center justify-between text-xs text-amber-800 dark:text-amber-300 font-bold">
-                        <span className="flex items-center gap-1.5">
-                          <Lock className="w-3.5 h-3.5" />
-                          Materi Terkunci oleh Guru PJOK
-                        </span>
-                        <span className="text-[10px] font-normal text-amber-700/80 dark:text-amber-400">
-                          Butuh PIN Kelas
-                        </span>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <Key className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-amber-600" />
-                          <input
-                            type="text"
-                            value={pinInputs[item.id] || ''}
-                            onChange={(e) =>
-                              setPinInputs({ ...pinInputs, [item.id]: e.target.value })
-                            }
-                            onKeyDown={(e) => e.key === 'Enter' && handleUnlockWithPin(item)}
-                            placeholder="Masukkan PIN materi..."
-                            className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono uppercase focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                          />
-                        </div>
-
-                        <button
-                          onClick={() => handleUnlockWithPin(item)}
-                          className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors cursor-pointer shrink-0"
-                        >
-                          Buka
-                        </button>
-                      </div>
-
-                      {pinError[item.id] && (
-                        <p className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">
-                          {pinError[item.id]}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                  <button
+                    onClick={() => handleOpenMaterial(item)}
+                    className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-extrabold shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>Buka & Pelajari Materi</span>
+                  </button>
+                  <p className="text-[11px] text-center text-slate-400">
+                    Materi akan dibuka langsung di dalam aplikasi.
+                  </p>
                 </div>
               </div>
             );

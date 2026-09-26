@@ -1318,9 +1318,10 @@ export const DatabaseService = {
     const cleanClass = (kelas || '').trim().toLowerCase();
     return list.filter(
       (m) =>
-        m.kelas === 'Semua Kelas' ||
-        m.kelas === 'Semua' ||
-        m.kelas.trim().toLowerCase() === cleanClass
+        (m.status === 'aktif' || m.status === 'buka' || !m.status) &&
+        (m.kelas === 'Semua Kelas' ||
+          m.kelas === 'Semua' ||
+          m.kelas.trim().toLowerCase() === cleanClass)
     );
   },
 
@@ -1355,7 +1356,7 @@ export const DatabaseService = {
     notifySubscribers();
   },
 
-  async toggleMaterialStatus(id: string, status: 'buka' | 'kunci'): Promise<void> {
+  async toggleMaterialStatus(id: string, status: 'aktif' | 'draf' | 'buka' | 'kunci'): Promise<void> {
     const material = await this.getMaterial(id);
     if (!material) return;
     const updated: MaterialItem = {

@@ -401,7 +401,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         u.role === 'murid' &&
         (u.nis?.toLowerCase() === cleanIdentity ||
           u.nama.toLowerCase() === cleanIdentity ||
-          u.email.toLowerCase() === cleanIdentity)
+          u.username?.toLowerCase() === cleanIdentity ||
+          u.email?.toLowerCase() === cleanIdentity ||
+          u.email?.toLowerCase() === `${cleanIdentity}@pjok.sch.id`)
     );
 
     if (match) {
@@ -409,7 +411,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: false, message: 'Akun Anda berstatus nonaktif.' };
       }
       if (match.password && pass && match.password !== pass) {
-        return { success: false, message: 'Kata sandi siswa salah (standar: 123456).' };
+        return { success: false, message: 'Kata sandi siswa salah.' };
       }
       setCurrentUser(match);
       localStorage.setItem(LS_SESSION_KEY, match.uid);
@@ -430,12 +432,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     pass: string
   ): Promise<{ success: boolean; message?: string }> => {
     try {
+      const cleanIdent = identity.toLowerCase().trim();
       const allUsers = await DatabaseService.getUsers();
       const match = allUsers.find(
         (u) =>
-          u.email.toLowerCase() === identity ||
-          u.nama.toLowerCase() === identity ||
-          (u.nis && u.nis.toLowerCase() === identity)
+          u.email.toLowerCase() === cleanIdent ||
+          u.nama.toLowerCase() === cleanIdent ||
+          u.username?.toLowerCase() === cleanIdent ||
+          (u.nis && u.nis.toLowerCase() === cleanIdent) ||
+          u.email.toLowerCase() === `${cleanIdent}@pjok.sch.id`
       );
 
       if (match) {

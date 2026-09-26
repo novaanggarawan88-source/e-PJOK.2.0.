@@ -15,7 +15,9 @@ import {
   Maximize2,
   RefreshCw,
   ShieldAlert,
-  Send
+  Send,
+  ExternalLink,
+  Zap
 } from 'lucide-react';
 
 export const StudentQuiz: React.FC = () => {
@@ -23,6 +25,18 @@ export const StudentQuiz: React.FC = () => {
   const [quizzes, setQuizzes] = useState<QuizItem[]>([]);
   const [submissions, setSubmissions] = useState<QuizSubmission[]>([]);
   const [activeQuizToTake, setActiveQuizToTake] = useState<QuizItem | null>(null);
+
+  // Helper optimasi URL form/kuis untuk iframe agar lebih ringan
+  const formatQuizEmbedUrl = (url: string) => {
+    if (!url) return '';
+    let cleanUrl = url.trim();
+    if (cleanUrl.includes('docs.google.com/forms')) {
+      if (!cleanUrl.includes('embedded=true')) {
+        cleanUrl += cleanUrl.includes('?') ? '&embedded=true' : '?embedded=true';
+      }
+    }
+    return cleanUrl;
+  };
 
   // PIN unlock state per quiz
   const [pinInputs, setPinInputs] = useState<{ [quizId: string]: string }>({});
@@ -96,15 +110,16 @@ export const StudentQuiz: React.FC = () => {
     setActiveQuizToTake(null);
   };
 
-  const handleMarkAsDone = async () => {
-    if (!user || !activeQuizToTake) return;
+  const handleMarkAsDone = async (targetQuiz?: QuizItem) => {
+    const quiz = targetQuiz || activeQuizToTake;
+    if (!user || !quiz) return;
 
     const subData: QuizSubmission = {
-      id: `qsub-${activeQuizToTake.id}-${user.uid}`,
-      quizId: activeQuizToTake.id,
+      id: `qsub-${quiz.id}-${user.uid}`,
+      quizId: quiz.id,
       studentId: user.uid,
       studentName: user.nama,
-      studentClass: user.kelas || 'XI 7',
+      studentClass: user.kelas || 'XI 1',
       studentNoAbsen: user.nomorAbsen,
       submittedAt: new Date().toISOString(),
       status: 'selesai'
@@ -131,30 +146,30 @@ export const StudentQuiz: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col text-white">
         {/* Top Floating Control Bar */}
-        <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="bg-slate-900 border-b border-slate-800 px-3 sm:px-4 py-3 flex items-center justify-between gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={handleCloseQuizViewer}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Kembali</span>
             </button>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-white truncate max-w-[220px] sm:max-w-md font-heading">
+            <div className="min-w-0">
+              <h2 className="text-xs sm:text-base font-bold text-white truncate max-w-[160px] sm:max-w-md font-heading">
                 {activeQuizToTake.judul}
               </h2>
-              <p className="text-[11px] text-teal-400">
+              <p className="text-[10px] sm:text-[11px] text-teal-400 truncate">
                 Materi: {activeQuizToTake.materi} • {user?.nama} ({user?.kelas})
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Countdown timer */}
             {timeLeftMinutes !== null && (
               <div
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-xs font-bold ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-mono text-[11px] sm:text-xs font-bold ${
                   timeLeftMinutes < 300
                     ? 'bg-rose-900/80 text-rose-300 border border-rose-700 animate-pulse'
                     : 'bg-slate-800 text-teal-300 border border-slate-700'
@@ -165,26 +180,52 @@ export const StudentQuiz: React.FC = () => {
               </div>
             )}
 
+            {/* Buka di Tab Baru (Jika Iframe Lemot) */}
+            <a
+              href={activeQuizToTake.linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold transition-all shadow-xs"
+              title="Buka langsung di tab baru browser (anti lemot)"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Tab Baru</span>
+            </a>
+
             {/* Mark as Done Button */}
             <button
-              onClick={handleMarkAsDone}
+              onClick={() => handleMarkAsDone()}
               disabled={isDone}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer shadow-md ${
                 isDone
                   ? 'bg-emerald-700 text-white cursor-default'
                   : 'bg-teal-600 hover:bg-teal-500 text-white'
               }`}
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{isDone ? 'Sudah Ditandai Selesai' : 'Tandai Selesai'}</span>
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{isDone ? 'Selesai' : 'Tandai Selesai'}</span>
             </button>
           </div>
         </header>
 
+        {/* Tip bar jika halaman lambat dibuka */}
+        <div className="bg-slate-800/90 border-b border-slate-700/80 px-3 py-1.5 text-center text-[11px] text-slate-300 flex items-center justify-center gap-2">
+          <span>Halaman kuis lambat terbuka atau putih?</span>
+          <a
+            href={activeQuizToTake.linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-emerald-400 font-bold underline hover:text-emerald-300 inline-flex items-center gap-1"
+          >
+            <span>Buka Langsung di Tab Baru Browser</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+
         {/* Embedded Quiz Frame / In-App Direct Display */}
         <div className="flex-1 bg-slate-950 relative overflow-hidden flex flex-col">
           <iframe
-            src={activeQuizToTake.linkUrl}
+            src={formatQuizEmbedUrl(activeQuizToTake.linkUrl)}
             title={activeQuizToTake.judul}
             className="w-full flex-1 border-0 bg-white"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -350,15 +391,46 @@ export const StudentQuiz: React.FC = () => {
                 </div>
 
                 {/* Bottom Action Area */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/70 border-t border-slate-100 dark:border-slate-800">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/70 border-t border-slate-100 dark:border-slate-800 space-y-2">
                   {canAccess ? (
-                    <button
-                      onClick={() => handleOpenQuiz(quiz)}
-                      className="w-full min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-teal-600/20 transition-all cursor-pointer"
-                    >
-                      <Play className="w-4 h-4 fill-white" />
-                      <span>{isDone ? 'Buka Kembali Kuis' : 'Buka & Kerjakan Kuis'}</span>
-                    </button>
+                    <>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        {/* Tombol Utama: Buka di Tab Baru (Paling Cepat & Ringan) */}
+                        <a
+                          href={quiz.linkUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all text-center cursor-pointer"
+                        >
+                          <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
+                          <span>Buka Kuis (Tab Baru - Cepat)</span>
+                          <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                        </a>
+
+                        {/* Tombol Alternatif: Buka di Dalam Aplikasi */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenQuiz(quiz)}
+                          className="min-h-[44px] sm:min-w-[130px] flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer"
+                          title="Buka di bingkai dalam aplikasi"
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                          <span>Di Aplikasi</span>
+                        </button>
+                      </div>
+
+                      {/* Tombol Cepat: Tandai Selesai setelah mengerjakan di Tab Baru */}
+                      {!isDone && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkAsDone(quiz)}
+                          className="w-full py-2 rounded-xl bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-teal-800 dark:text-teal-300 font-semibold text-xs border border-teal-200/80 dark:border-teal-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                          <span>Sudah selesai mengerjakan kuis? Klik untuk Tandai Selesai</span>
+                        </button>
+                      )}
+                    </>
                   ) : (
                     <button
                       disabled

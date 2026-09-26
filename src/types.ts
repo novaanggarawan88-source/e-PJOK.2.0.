@@ -195,8 +195,8 @@ export interface MaterialItem {
   linkUrl: string; // URL link utama (YouTube embed, Google Apps Script, Google Drive, Canva, Web, PDF)
   linkTambahan?: MaterialLinkItem[]; // Daftar kolom tautan link tambahan (bisa banyak AppScript / web)
   kolomMateriTambahan?: MaterialColumnItem[]; // Daftar kolom konten materi tambahan dinamis
-  status: 'buka' | 'kunci'; // 'buka' = bisa langsung dipelajari, 'kunci' = butuh PIN
-  kodeKunci?: string; // PIN kunci akses materi opsional
+  status: 'aktif' | 'draf' | 'buka' | 'kunci'; // 'aktif' / 'buka' = materi aktif dapat dipelajari murid, 'draf' / 'kunci' = draf guru
+  kodeKunci?: string; // Opsional kode kunci kompatibilitas lama
   deskripsi?: string; // Ringkasan singkat materi
   instruksi?: string; // Arahan belajar dari guru PJOK
   durasiEstimasi?: number; // Estimasi waktu belajar dalam menit (misal 15-30 menit)

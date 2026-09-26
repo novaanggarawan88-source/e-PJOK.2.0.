@@ -122,7 +122,7 @@ export const MaterialManagement: React.FC = () => {
   const [linkUrl, setLinkUrl] = useState('');
   const [linkTambahan, setLinkTambahan] = useState<MaterialLinkItem[]>([]);
   const [kolomMateriTambahan, setKolomMateriTambahan] = useState<MaterialColumnItem[]>([]);
-  const [status, setStatus] = useState<'buka' | 'kunci'>('buka');
+  const [status, setStatus] = useState<'aktif' | 'draf'>('aktif');
   const [kodeKunci, setKodeKunci] = useState('');
   const [durasiEstimasi, setDurasiEstimasi] = useState<number>(15);
   const [deskripsi, setDeskripsi] = useState('');
@@ -168,7 +168,7 @@ export const MaterialManagement: React.FC = () => {
     setLinkUrl('');
     setLinkTambahan([]);
     setKolomMateriTambahan([]);
-    setStatus('buka');
+    setStatus('aktif');
     setKodeKunci('');
     setDurasiEstimasi(15);
     setDeskripsi('');
@@ -187,7 +187,7 @@ export const MaterialManagement: React.FC = () => {
     setLinkUrl(item.linkUrl);
     setLinkTambahan(item.linkTambahan ? [...item.linkTambahan] : []);
     setKolomMateriTambahan(item.kolomMateriTambahan ? [...item.kolomMateriTambahan] : []);
-    setStatus(item.status);
+    setStatus(item.status === 'draf' || item.status === 'kunci' ? 'draf' : 'aktif');
     setKodeKunci(item.kodeKunci || '');
     setDurasiEstimasi(item.durasiEstimasi || 15);
     setDeskripsi(item.deskripsi || '');
@@ -293,7 +293,7 @@ export const MaterialManagement: React.FC = () => {
         linkTambahan: validLinkTambahan.length > 0 ? validLinkTambahan : undefined,
         kolomMateriTambahan: validKolomTambahan.length > 0 ? validKolomTambahan : undefined,
         status,
-        kodeKunci: kodeKunci.trim() ? kodeKunci.trim().toUpperCase() : undefined,
+        kodeKunci: undefined,
         durasiEstimasi: Number(durasiEstimasi) || 15,
         deskripsi: deskripsi.trim(),
         instruksi: instruksi.trim(),
@@ -306,7 +306,9 @@ export const MaterialManagement: React.FC = () => {
       showNotification(
         editingMaterial
           ? 'Perubahan materi pembelajaran berhasil disimpan!'
-          : 'Materi pembelajaran baru berhasil ditambahkan!'
+          : status === 'aktif'
+          ? 'Materi baru berhasil diterbitkan untuk murid!'
+          : 'Materi baru disimpan sebagai draf guru!'
       );
       loadData();
     } catch (err: any) {
@@ -318,28 +320,14 @@ export const MaterialManagement: React.FC = () => {
   };
 
   const handleToggleStatus = async (item: MaterialItem) => {
-    const newStatus = item.status === 'buka' ? 'kunci' : 'buka';
-    if (newStatus === 'kunci' && !item.kodeKunci) {
-      const pin = prompt('Masukkan PIN kunci untuk materi ini (contoh: PJOK2026):', 'PJOK123');
-      if (!pin || !pin.trim()) {
-        alert('PIN kunci dibatalkan.');
-        return;
-      }
-      await DatabaseService.saveMaterial({
-        ...item,
-        status: 'kunci',
-        kodeKunci: pin.trim().toUpperCase(),
-        updatedAt: new Date().toISOString()
-      });
-      showNotification(`Materi "${item.judul}" dikunci dengan PIN: ${pin.trim().toUpperCase()}`);
-    } else {
-      await DatabaseService.toggleMaterialStatus(item.id, newStatus);
-      showNotification(
-        newStatus === 'buka'
-          ? `Materi "${item.judul}" dibuka untuk murid.`
-          : `Materi "${item.judul}" berhasil dikunci.`
-      );
-    }
+    const isCurrentActive = item.status === 'aktif' || item.status === 'buka' || !item.status;
+    const newStatus: 'aktif' | 'draf' = isCurrentActive ? 'draf' : 'aktif';
+    await DatabaseService.toggleMaterialStatus(item.id, newStatus);
+    showNotification(
+      newStatus === 'aktif'
+        ? `Materi "${item.judul}" berhasil diaktifkan (dapat diakses murid).`
+        : `Materi "${item.judul}" diubah menjadi Draf (disimpan guru).`
+    );
     loadData();
   };
 
@@ -397,8 +385,8 @@ export const MaterialManagement: React.FC = () => {
     return matchesClass && matchesCategory && matchesSearch;
   });
 
-  const totalActive = materials.filter((m) => m.status === 'buka').length;
-  const totalLocked = materials.filter((m) => m.status === 'kunci').length;
+  const totalActive = materials.filter((m) => m.status === 'aktif' || m.status === 'buka' || !m.status).length;
+  const totalDraft = materials.filter((m) => m.status === 'draf' || m.status === 'kunci').length;
   const totalVideos = materials.filter((m) => m.kategori === 'Video Pembelajaran').length;
 
   return (
@@ -448,15 +436,15 @@ export const MaterialManagement: React.FC = () => {
             </p>
           </div>
           <div className="p-3 sm:p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800/40">
-            <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Materi Buka (Bisa Diakses)</span>
+            <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Materi Aktif (Bisa Diakses)</span>
             <p className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1">
               {totalActive}
             </p>
           </div>
-          <div className="p-3 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-800/40">
-            <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">Terkunci (Perlu PIN)</span>
-            <p className="text-xl sm:text-2xl font-black text-amber-700 dark:text-amber-300 mt-1">
-              {totalLocked}
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Materi Draf (Disimpan Guru)</span>
+            <p className="text-xl sm:text-2xl font-black text-slate-700 dark:text-slate-200 mt-1">
+              {totalDraft}
             </p>
           </div>
           <div className="p-3 sm:p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-800/40">
@@ -546,7 +534,7 @@ export const MaterialManagement: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {filteredMaterials.map((item) => {
             const completedStudents = progressList.filter((p) => p.materialId === item.id);
-            const isUnlocked = item.status === 'buka';
+            const isItemActive = item.status === 'aktif' || item.status === 'buka' || !item.status;
 
             return (
               <div
@@ -567,25 +555,29 @@ export const MaterialManagement: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Status badge & lock toggle */}
+                    {/* Status badge & toggle Aktif / Draf */}
                     <button
                       onClick={() => handleToggleStatus(item)}
-                      title="Klik untuk membuka / mengunci materi secara langsung"
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
-                        isUnlocked
+                      title={
+                        isItemActive
+                          ? 'Klik untuk mengubah status menjadi Draf (disembunyikan dari murid)'
+                          : 'Klik untuk mengaktifkan materi (murid bisa langsung belajar)'
+                      }
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold cursor-pointer transition-all ${
+                        isItemActive
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 hover:bg-emerald-200'
-                          : 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 hover:bg-amber-200'
+                          : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-300'
                       }`}
                     >
-                      {isUnlocked ? (
+                      {isItemActive ? (
                         <>
-                          <Unlock className="w-3.5 h-3.5" />
-                          <span>Materi Buka (Akses Bebas)</span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Status: Aktif</span>
                         </>
                       ) : (
                         <>
-                          <Lock className="w-3.5 h-3.5" />
-                          <span>Terkunci (Pakai PIN)</span>
+                          <span className="w-2 h-2 rounded-full bg-slate-400" />
+                          <span>Status: Draf</span>
                         </>
                       )}
                     </button>
@@ -1153,60 +1145,43 @@ export const MaterialManagement: React.FC = () => {
                 )}
               </div>
 
-              {/* Status Akses & PIN */}
+              {/* Pengaturan Status: Aktif / Draf */}
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <h4 className="text-xs font-bold text-slate-800 dark:text-white">
-                      Status Akses Materi
+                      Pengaturan Status Materi
                     </h4>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Tentukan apakah materi langsung terbuka atau butuh kode PIN dari guru.
+                      Pilih <strong>Aktif</strong> agar langsung tampil di akun murid, atau <strong>Draf</strong> jika masih ingin disimpan terlebih dahulu (tanpa perlu PIN).
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
-                      onClick={() => setStatus('buka')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                        status === 'buka'
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      onClick={() => setStatus('aktif')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
+                        status === 'aktif'
+                          ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20'
+                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300'
                       }`}
                     >
-                      Buka Bebas
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Aktif (Terbit)</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setStatus('kunci')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                        status === 'kunci'
-                          ? 'bg-amber-600 text-white shadow-xs'
-                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      onClick={() => setStatus('draf')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
+                        status === 'draf'
+                          ? 'bg-slate-700 text-white shadow-sm ring-2 ring-slate-500/20 dark:bg-slate-600'
+                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300'
                       }`}
                     >
-                      Kunci (Pakai PIN)
+                      <span>Draf (Simpan Saja)</span>
                     </button>
                   </div>
                 </div>
-
-                {status === 'kunci' && (
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-                    <label className="block text-xs font-bold text-amber-700 dark:text-amber-400 mb-1">
-                      Kode PIN Kunci Materi (Opsional / Guru bagikan di kelas)
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <Key className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      <input
-                        type="text"
-                        value={kodeKunci}
-                        onChange={(e) => setKodeKunci(e.target.value.toUpperCase())}
-                        placeholder="Contoh: VOLI2026"
-                        className="w-full px-3 py-2 text-sm rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono font-bold tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div>
