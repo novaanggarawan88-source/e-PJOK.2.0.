@@ -378,10 +378,70 @@ const setStored = <T>(key: string, data: T[]) => {
   }
 };
 
+export const isDummyAccount = (u: Partial<UserProfile>): boolean => {
+  const dummyNis = ['1001', '1002', '1003', '1004', '1005'];
+  const dummyEmails = [
+    'andi@pjok.sch.id',
+    'budi@pjok.sch.id',
+    'citra@pjok.sch.id',
+    'dewi@pjok.sch.id',
+    'eko@pjok.sch.id'
+  ];
+  const dummyNames = [
+    'andi pratama',
+    'budi santoso',
+    'citra lestari',
+    'dewi anggraini',
+    'eko prasetyo'
+  ];
+  if (u.nis && dummyNis.includes(String(u.nis).trim())) return true;
+  if (u.email && dummyEmails.includes(u.email.toLowerCase().trim())) return true;
+  if (u.nama && dummyNames.includes(u.nama.toLowerCase().trim())) return true;
+  if (u.uid && dummyNis.some((n) => u.uid?.includes(n))) return true;
+  return false;
+};
+
 export const DatabaseService = {
   // --- USERS / PENGGUNA ---
+  async purgeDummyAccounts(): Promise<void> {
+    if (isFirebaseConfigured() && db) {
+      try {
+        const [snapPengguna, snapUsers] = await Promise.all([
+          getDocs(collection(db, 'pengguna')).catch(() => null),
+          getDocs(collection(db, 'users')).catch(() => null)
+        ]);
+        const promises: Promise<any>[] = [];
+        if (snapPengguna) {
+          for (const d of snapPengguna.docs) {
+            const data = d.data() as UserProfile;
+            if (isDummyAccount(data) || isDummyAccount({ uid: d.id })) {
+              promises.push(deleteDoc(doc(db, 'pengguna', d.id)).catch(() => {}));
+            }
+          }
+        }
+        if (snapUsers) {
+          for (const d of snapUsers.docs) {
+            const data = d.data() as UserProfile;
+            if (isDummyAccount(data) || isDummyAccount({ uid: d.id })) {
+              promises.push(deleteDoc(doc(db, 'users', d.id)).catch(() => {}));
+            }
+          }
+        }
+        await Promise.all(promises);
+      } catch (e) {
+        console.warn('purgeDummyAccounts error:', e);
+      }
+    }
+    const all = getStored<UserProfile>(LS_USERS, []);
+    const filtered = all.filter((u) => !isDummyAccount(u));
+    setStored(LS_USERS, filtered);
+    notifySubscribers();
+  },
+
   async getUsers(): Promise<UserProfile[]> {
-    const localUsers = getStored<UserProfile>(LS_USERS, []);
+    const rawLocal = getStored<UserProfile>(LS_USERS, []);
+    const localUsers = rawLocal.filter((u) => !isDummyAccount(u));
+
     if (isFirebaseConfigured() && db) {
       try {
         const [snapPengguna, snapUsers] = await Promise.all([
@@ -395,23 +455,37 @@ export const DatabaseService = {
         if (snapUsers && !snapUsers.empty) {
           for (const d of snapUsers.docs) {
             const u = d.data() as UserProfile;
-            if (u && u.uid) cloudMap.set(u.uid, u);
+            if (u && (u.uid || d.id)) {
+              const fullU = { ...u, uid: u.uid || d.id };
+              if (isDummyAccount(fullU)) {
+                deleteDoc(doc(db, 'users', d.id)).catch(() => {});
+                deleteDoc(doc(db, 'pengguna', d.id)).catch(() => {});
+                continue;
+              }
+              cloudMap.set(fullU.uid, fullU);
+            }
           }
         }
         if (snapPengguna && !snapPengguna.empty) {
           for (const d of snapPengguna.docs) {
             const u = d.data() as UserProfile;
-            if (u && u.uid) {
-              const prev = cloudMap.get(u.uid);
+            if (u && (u.uid || d.id)) {
+              const fullU = { ...u, uid: u.uid || d.id };
+              if (isDummyAccount(fullU)) {
+                deleteDoc(doc(db, 'pengguna', d.id)).catch(() => {});
+                deleteDoc(doc(db, 'users', d.id)).catch(() => {});
+                continue;
+              }
+              const prev = cloudMap.get(fullU.uid);
               if (!prev) {
-                cloudMap.set(u.uid, u);
+                cloudMap.set(fullU.uid, fullU);
               } else {
-                const timeU = u.updatedAt || u.createdAt || '1970-01-01';
+                const timeU = fullU.updatedAt || fullU.createdAt || '1970-01-01';
                 const timePrev = prev.updatedAt || prev.createdAt || '1970-01-01';
                 if (new Date(timeU).getTime() >= new Date(timePrev).getTime()) {
-                  cloudMap.set(u.uid, { ...prev, ...u });
+                  cloudMap.set(fullU.uid, { ...prev, ...fullU });
                 } else {
-                  cloudMap.set(u.uid, { ...u, ...prev });
+                  cloudMap.set(fullU.uid, { ...fullU, ...prev });
                 }
               }
             }
@@ -422,6 +496,7 @@ export const DatabaseService = {
         if (cloudMap.size === 0 && localUsers.length === 0) {
           const seeded: UserProfile[] = [];
           for (const u of INITIAL_USERS) {
+            if (isDummyAccount(u)) continue;
             const withTime: UserProfile = {
               ...u,
               updatedAt: u.createdAt || new Date().toISOString()
@@ -440,6 +515,7 @@ export const DatabaseService = {
         const finalMap = new Map<string, UserProfile>(cloudMap);
 
         for (const lu of localUsers) {
+          if (isDummyAccount(lu)) continue;
           const cu = finalMap.get(lu.uid);
           if (!cu) {
             finalMap.set(lu.uid, lu);
@@ -452,8 +528,9 @@ export const DatabaseService = {
           }
         }
 
-        // Pastikan INITIAL_USERS (seperti 31 murid XI 1) juga terdaftar jika belum ada
+        // Pastikan INITIAL_USERS (seperti murid XI 1 s/d XI 9) juga terdaftar jika belum ada
         for (const initU of INITIAL_USERS) {
+          if (isDummyAccount(initU)) continue;
           const exists = Array.from(finalMap.values()).some(
             (u) => u.uid === initU.uid || (u.nis && initU.nis && u.nis === initU.nis)
           );
@@ -462,7 +539,7 @@ export const DatabaseService = {
           }
         }
 
-        const mergedUsers = Array.from(finalMap.values());
+        const mergedUsers = Array.from(finalMap.values()).filter((u) => !isDummyAccount(u));
         try {
           localStorage.setItem(LS_USERS, JSON.stringify(mergedUsers));
         } catch {}
@@ -472,12 +549,15 @@ export const DatabaseService = {
       }
     }
 
-    // Merge any INITIAL_USERS (seperti 31 murid XI 1) yang belum ada di localUsers
+    // Merge any INITIAL_USERS yang belum ada di localUsers
     const localMap = new Map<string, UserProfile>();
-    localUsers.forEach((u) => localMap.set(u.uid, u));
+    localUsers.forEach((u) => {
+      if (!isDummyAccount(u)) localMap.set(u.uid, u);
+    });
     let hasNewInitials = false;
 
     for (const initU of INITIAL_USERS) {
+      if (isDummyAccount(initU)) continue;
       const existsByUid = localMap.has(initU.uid);
       const existsByNis = initU.nis && localUsers.some((lu) => lu.nis === initU.nis);
       if (!existsByUid && !existsByNis) {
@@ -487,10 +567,9 @@ export const DatabaseService = {
       }
     }
 
-    if (hasNewInitials || localUsers.length === 0) {
-      setStored(LS_USERS, localUsers);
-    }
-    return localUsers;
+    const cleanedLocal = localUsers.filter((u) => !isDummyAccount(u));
+    setStored(LS_USERS, cleanedLocal);
+    return cleanedLocal;
   },
 
   async getUser(uid: string): Promise<UserProfile | null> {
@@ -538,13 +617,16 @@ export const DatabaseService = {
   async deleteUser(uid: string): Promise<void> {
     if (isFirebaseConfigured() && db) {
       try {
-        await deleteDoc(doc(db, 'pengguna', uid));
+        await Promise.all([
+          deleteDoc(doc(db, 'pengguna', uid)).catch(() => {}),
+          deleteDoc(doc(db, 'users', uid)).catch(() => {})
+        ]);
       } catch (err) {
         console.warn('Firestore deleteUser error:', err);
       }
     }
     const all = getStored<UserProfile>(LS_USERS, []);
-    const filtered = all.filter((u) => u.uid !== uid);
+    const filtered = all.filter((u) => u.uid !== uid && !isDummyAccount(u));
     setStored(LS_USERS, filtered);
     notifySubscribers();
   },
@@ -556,7 +638,8 @@ export const DatabaseService = {
       try {
         const promises: Promise<any>[] = [];
         for (const uid of uids) {
-          promises.push(deleteDoc(doc(db, 'pengguna', uid)));
+          promises.push(deleteDoc(doc(db, 'pengguna', uid)).catch(() => {}));
+          promises.push(deleteDoc(doc(db, 'users', uid)).catch(() => {}));
         }
         await Promise.all(promises);
       } catch (err) {
@@ -564,7 +647,7 @@ export const DatabaseService = {
       }
     }
     const all = getStored<UserProfile>(LS_USERS, []);
-    const filtered = all.filter((u) => !uidSet.has(u.uid));
+    const filtered = all.filter((u) => !uidSet.has(u.uid) && !isDummyAccount(u));
     setStored(LS_USERS, filtered);
     notifySubscribers();
   },

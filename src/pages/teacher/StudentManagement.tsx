@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DatabaseService, subscribeToDataChanges } from '../../services/db';
+import { DatabaseService, subscribeToDataChanges, isDummyAccount } from '../../services/db';
 import { UserProfile, ClassItem } from '../../types';
 import {
   Users,
@@ -48,11 +48,12 @@ export const StudentManagement: React.FC = () => {
   const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif');
 
   const loadData = async () => {
+    await DatabaseService.purgeDummyAccounts();
     const [u, c] = await Promise.all([
       DatabaseService.getUsers(),
       DatabaseService.getClasses()
     ]);
-    setStudents(u.filter((x) => x.role === 'murid'));
+    setStudents(u.filter((x) => x.role === 'murid' && !isDummyAccount(x)));
     setClasses(c);
   };
 
@@ -66,10 +67,10 @@ export const StudentManagement: React.FC = () => {
     setEditingStudent(null);
     setNama('');
     setNis('');
-    setKelas(classes[0]?.nama || 'XI 7');
+    setKelas(classes[0]?.nama || 'XI 1');
     setNomorAbsen('');
     setEmail('');
-    setPassword('123456');
+    setPassword('murid123');
     setStatus('aktif');
     setIsFormOpen(true);
   };
@@ -78,10 +79,10 @@ export const StudentManagement: React.FC = () => {
     setEditingStudent(student);
     setNama(student.nama);
     setNis(student.nis || '');
-    setKelas(student.kelas || classes[0]?.nama || 'XI 7');
+    setKelas(student.kelas || classes[0]?.nama || 'XI 1');
     setNomorAbsen(student.nomorAbsen || '');
     setEmail(student.email);
-    setPassword(student.password || '123456');
+    setPassword(student.password || 'murid123');
     setStatus(student.status);
     setIsFormOpen(true);
   };
@@ -756,7 +757,7 @@ export const StudentManagement: React.FC = () => {
                   type="text"
                   value={nama}
                   onChange={(e) => setNama(e.target.value)}
-                  placeholder="Contoh: Andi Pratama"
+                  placeholder="Contoh: Gede Dirga Jaya Kusuma"
                   required
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
                 />
@@ -771,7 +772,7 @@ export const StudentManagement: React.FC = () => {
                     type="text"
                     value={nis}
                     onChange={(e) => setNis(e.target.value)}
-                    placeholder="Contoh: 1001"
+                    placeholder="Contoh: 7706"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
@@ -829,7 +830,7 @@ export const StudentManagement: React.FC = () => {
                   type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Contoh: andi@pjok.sch.id (atau otomatis dibuat jika kosong)"
+                  placeholder="Contoh: gededirgajayakusuma (atau otomatis dibuat jika kosong)"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
