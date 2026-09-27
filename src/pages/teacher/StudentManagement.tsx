@@ -22,8 +22,12 @@ import {
 } from 'lucide-react';
 
 export const StudentManagement: React.FC = () => {
-  const [students, setStudents] = useState<UserProfile[]>([]);
-  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [students, setStudents] = useState<UserProfile[]>(() =>
+    DatabaseService.getCachedUsers().filter((x) => x.role === 'murid' && !isDummyAccount(x))
+  );
+  const [classes, setClasses] = useState<ClassItem[]>(() =>
+    DatabaseService.getCachedClasses().filter((c) => !isClassDeleted(c))
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('Semua');
   
@@ -48,13 +52,13 @@ export const StudentManagement: React.FC = () => {
   const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif');
 
   const loadData = async () => {
-    await DatabaseService.purgeDummyAccounts();
     const [u, c] = await Promise.all([
       DatabaseService.getUsers(),
       DatabaseService.getClasses()
     ]);
     setStudents(u.filter((x) => x.role === 'murid' && !isDummyAccount(x)));
-    setClasses(c);
+    setClasses(c.filter((cl) => !isClassDeleted(cl)));
+    DatabaseService.purgeDummyAccounts().catch(() => {});
   };
 
   useEffect(() => {
@@ -95,7 +99,7 @@ export const StudentManagement: React.FC = () => {
       uid: editingStudent ? editingStudent.uid : `murid-${Date.now()}`,
       nama: nama.trim(),
       email: email.trim() || `${nama.toLowerCase().replace(/\s+/g, '')}@pjok.sch.id`,
-      password: password.trim() || '123456',
+      password: password.trim() || 'murid123',
       role: 'murid',
       kelas,
       nomorAbsen: nomorAbsen.trim(),
@@ -105,15 +109,29 @@ export const StudentManagement: React.FC = () => {
       updatedAt: new Date().toISOString()
     };
 
+    // Optimistic UI update
+    setStudents((prev) => {
+      const idx = prev.findIndex((s) => s.uid === studentToSave.uid);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = studentToSave;
+        return next;
+      }
+      return [studentToSave, ...prev];
+    });
+
     await DatabaseService.saveUser(studentToSave);
+    await loadData();
     setIsFormOpen(false);
     showNotice(editingStudent ? 'Data dan kredensial murid berhasil diperbarui' : 'Murid baru berhasil ditambahkan');
   };
 
   const handleDelete = async (uid: string, name: string) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus data murid: ${name}?`)) {
-      await DatabaseService.deleteUser(uid);
+      setStudents((prev) => prev.filter((s) => s.uid !== uid));
       setSelectedUids((prev) => prev.filter((id) => id !== uid));
+      await DatabaseService.deleteUser(uid);
+      await loadData();
       showNotice('Data murid berhasil dihapus');
     }
   };
@@ -145,9 +163,12 @@ export const StudentManagement: React.FC = () => {
         `Apakah Anda yakin ingin menghapus ${count} data murid yang dipilih? Tindakan ini tidak dapat dibatalkan.`
       )
     ) {
-      setIsDeletingBulk(true);
-      await DatabaseService.deleteUsers(selectedUids);
+      const uidsToDelete = [...selectedUids];
+      setStudents((prev) => prev.filter((s) => !uidsToDelete.includes(s.uid)));
       setSelectedUids([]);
+      setIsDeletingBulk(true);
+      await DatabaseService.deleteUsers(uidsToDelete);
+      await loadData();
       setIsDeletingBulk(false);
       showNotice(`${count} data murid berhasil dihapus sekaligus.`);
     }
@@ -155,7 +176,11 @@ export const StudentManagement: React.FC = () => {
 
   const handleToggleStatus = async (student: UserProfile) => {
     const updatedStatus = student.status === 'aktif' ? 'nonaktif' : 'aktif';
+    setStudents((prev) =>
+      prev.map((s) => (s.uid === student.uid ? { ...s, status: updatedStatus } : s))
+    );
     await DatabaseService.saveUser({ ...student, status: updatedStatus });
+    await loadData();
     showNotice(`Status murid diubah menjadi ${updatedStatus}`);
   };
 

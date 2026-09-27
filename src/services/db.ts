@@ -118,29 +118,28 @@ export const initRealtimeCloudSync = () => {
     onSnapshot(
       collection(db, 'classes'),
       (snap) => {
-        if (!snap.empty) {
-          const cloudClasses = snap.docs.map((d) => d.data() as ClassItem);
-          const local = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
-          const map = new Map<string, ClassItem>();
-          cloudClasses.forEach((c) => map.set(c.id, c));
-          local.forEach((lc) => {
-            const cc = map.get(lc.id);
-            if (!cc) {
+        const cloudClasses = snap.docs
+          .map((d) => ({ ...(d.data() as ClassItem), id: d.id }))
+          .filter((c) => !isClassDeleted(c));
+        const local = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES).filter((c) => !isClassDeleted(c));
+        const map = new Map<string, ClassItem>();
+        cloudClasses.forEach((c) => map.set(c.id, c));
+        local.forEach((lc) => {
+          if (isClassDeleted(lc)) return;
+          const cc = map.get(lc.id);
+          if (cc) {
+            const localT = (lc as any).updatedAt || lc.createdAt || '1970-01-01';
+            const cloudT = (cc as any).updatedAt || cc.createdAt || '1970-01-01';
+            if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
               map.set(lc.id, lc);
-            } else {
-              const localT = (lc as any).updatedAt || lc.createdAt || '1970-01-01';
-              const cloudT = (cc as any).updatedAt || cc.createdAt || '1970-01-01';
-              if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
-                map.set(lc.id, lc);
-              }
             }
-          });
-          const merged = Array.from(map.values());
-          try {
-            localStorage.setItem(LS_CLASSES, JSON.stringify(merged));
-          } catch {}
-          notifySubscribers();
-        }
+          }
+        });
+        const merged = Array.from(map.values()).filter((c) => !isClassDeleted(c));
+        try {
+          localStorage.setItem(LS_CLASSES, JSON.stringify(merged));
+        } catch {}
+        notifySubscribers();
       },
       (err) => handleSyncNotice('classes', err)
     );
@@ -197,29 +196,28 @@ export const initRealtimeCloudSync = () => {
     onSnapshot(
       collection(db, 'pengguna'),
       (snap) => {
-        if (!snap.empty) {
-          const cloudUsers = snap.docs.map((d) => d.data() as UserProfile);
-          const local = getStored<UserProfile>(LS_USERS, []);
-          const map = new Map<string, UserProfile>();
-          cloudUsers.forEach((u) => map.set(u.uid, u));
-          local.forEach((lu) => {
-            const cu = map.get(lu.uid);
-            if (!cu) {
+        const cloudUsers = snap.docs
+          .map((d) => ({ ...(d.data() as UserProfile), uid: d.id }))
+          .filter((u) => !isDummyAccount(u));
+        const local = getStored<UserProfile>(LS_USERS, []).filter((u) => !isDummyAccount(u));
+        const map = new Map<string, UserProfile>();
+        cloudUsers.forEach((u) => map.set(u.uid, u));
+        local.forEach((lu) => {
+          if (isDummyAccount(lu)) return;
+          const cu = map.get(lu.uid);
+          if (cu) {
+            const localT = lu.updatedAt || lu.createdAt || '1970-01-01';
+            const cloudT = cu.updatedAt || cu.createdAt || '1970-01-01';
+            if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
               map.set(lu.uid, lu);
-            } else {
-              const localT = lu.updatedAt || lu.createdAt || '1970-01-01';
-              const cloudT = cu.updatedAt || cu.createdAt || '1970-01-01';
-              if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
-                map.set(lu.uid, lu);
-              }
             }
-          });
-          const merged = Array.from(map.values());
-          try {
-            localStorage.setItem(LS_USERS, JSON.stringify(merged));
-          } catch {}
-          notifySubscribers();
-        }
+          }
+        });
+        const merged = Array.from(map.values()).filter((u) => !isDummyAccount(u));
+        try {
+          localStorage.setItem(LS_USERS, JSON.stringify(merged));
+        } catch {}
+        notifySubscribers();
       },
       (err) => handleSyncNotice('pengguna', err)
     );
@@ -460,6 +458,41 @@ export const isDummyAccount = (u: Partial<UserProfile>): boolean => {
 };
 
 export const DatabaseService = {
+  // --- SYNCHRONOUS CACHE READERS (0ms instant UI, no blank delay) ---
+  getCachedUsers(): UserProfile[] {
+    const raw = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+    return raw.filter((u) => !isDummyAccount(u));
+  },
+
+  getCachedClasses(): ClassItem[] {
+    const raw = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
+    return raw.filter((c) => !isClassDeleted(c));
+  },
+
+  getCachedTasks(): AssessmentTask[] {
+    return getStored<AssessmentTask>(LS_TASKS, INITIAL_TASKS);
+  },
+
+  getCachedAssessments(): AssessmentRecord[] {
+    return getStored<AssessmentRecord>(LS_ASSESSMENTS, INITIAL_ASSESSMENTS);
+  },
+
+  getCachedIndicators(): IndicatorItem[] {
+    return getStored<IndicatorItem>(LS_INDICATORS, INITIAL_INDICATORS);
+  },
+
+  getCachedQuizzes(): any[] {
+    return getStored<any>(LS_QUIZZES, INITIAL_QUIZZES);
+  },
+
+  getCachedMaterials(): MaterialItem[] {
+    return getStored<MaterialItem>(LS_MATERIALS, INITIAL_MATERIALS);
+  },
+
+  getCachedLearningTasks(): any[] {
+    return getStored<any>(LS_LEARNING_TASKS, INITIAL_LEARNING_TASKS);
+  },
+
   // --- USERS / PENGGUNA ---
   async purgeDummyAccounts(): Promise<void> {
     if (isFirebaseConfigured() && db) {
