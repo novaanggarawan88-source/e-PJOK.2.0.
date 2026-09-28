@@ -34,8 +34,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen }
                 <button
                   type="button"
                   onClick={onToggleSidebar}
-                  className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 focus:outline-hidden cursor-pointer transition-colors lg:hidden shrink-0"
+                  className="p-2 rounded-xl text-slate-700 dark:text-slate-200 bg-slate-100/80 dark:bg-slate-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 hover:text-emerald-600 dark:hover:text-emerald-400 focus:outline-hidden cursor-pointer transition-colors shrink-0 border border-slate-200/80 dark:border-slate-700/80"
                   aria-label="Buka menu navigasi"
+                  title={isSidebarOpen ? "Tutup menu samping" : "Buka menu samping"}
                 >
                   {isSidebarOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
                 </button>

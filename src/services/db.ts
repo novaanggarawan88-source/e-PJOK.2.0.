@@ -79,6 +79,177 @@ const notifySubscribers = () => {
   });
 };
 
+export const getStored = <T>(key: string, defaultData: T[]): T[] => {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    if (!raw) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(defaultData));
+      }
+      return defaultData;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn(`Error reading ${key}, falling back to default`, err);
+    return defaultData;
+  }
+};
+
+export const setStored = <T>(key: string, data: T[]) => {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+    notifySubscribers();
+  } catch (err) {
+    console.error(`Error saving ${key}`, err);
+  }
+};
+
+const LS_DELETED_CLASSES = 'pjok_deleted_classes';
+const LS_DELETED_USERS = 'pjok_deleted_users';
+
+export const getDeletedClasses = (): Set<string> => {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(LS_DELETED_CLASSES) : null;
+    const defaults = ['class-x-1', 'class-xii-1', 'x 1', 'xii 1'];
+    if (!raw) return new Set(defaults);
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? [...defaults, ...arr.map((x: string) => String(x).toLowerCase().trim())] : defaults);
+  } catch {
+    return new Set(['class-x-1', 'class-xii-1', 'x 1', 'xii 1']);
+  }
+};
+
+export const addDeletedClass = (idOrName: string) => {
+  try {
+    const current = getDeletedClasses();
+    current.add(idOrName.toLowerCase().trim());
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LS_DELETED_CLASSES, JSON.stringify(Array.from(current)));
+    }
+  } catch {}
+};
+
+export const getDeletedUsers = (): Set<string> => {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(LS_DELETED_USERS) : null;
+    const defaults = ['1001', '1002', '1003', '1004', '1005'];
+    if (!raw) return new Set(defaults);
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? [...defaults, ...arr.map((x: string) => String(x).toLowerCase().trim())] : defaults);
+  } catch {
+    return new Set(['1001', '1002', '1003', '1004', '1005']);
+  }
+};
+
+export const addDeletedUser = (idOrNis: string) => {
+  try {
+    const current = getDeletedUsers();
+    current.add(idOrNis.toLowerCase().trim());
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LS_DELETED_USERS, JSON.stringify(Array.from(current)));
+    }
+  } catch {}
+};
+
+export const isClassDeleted = (c: Partial<ClassItem>): boolean => {
+  const dummyClassIds = ['class-x-1', 'class-xii-1'];
+  const dummyClassNames = ['x 1', 'xii 1'];
+  if (c.id && dummyClassIds.includes(c.id.toLowerCase().trim())) return true;
+  if (c.nama && dummyClassNames.includes(c.nama.toLowerCase().trim())) return true;
+  const deletedSet = getDeletedClasses();
+  if (c.id && deletedSet.has(c.id.toLowerCase().trim())) return true;
+  if (c.nama && deletedSet.has(c.nama.toLowerCase().trim())) return true;
+  return false;
+};
+
+export const isDummyAccount = (u: Partial<UserProfile>): boolean => {
+  const dummyNis = ['1001', '1002', '1003', '1004', '1005'];
+  const dummyEmails = [
+    'andi@pjok.sch.id',
+    'budi@pjok.sch.id',
+    'citra@pjok.sch.id',
+    'dewi@pjok.sch.id',
+    'eko@pjok.sch.id'
+  ];
+  const dummyNames = [
+    'andi pratama',
+    'budi santoso',
+    'citra lestari',
+    'dewi anggraini',
+    'eko prasetyo'
+  ];
+  if (u.nis && dummyNis.includes(String(u.nis).trim())) return true;
+  if (u.email && dummyEmails.includes(u.email.toLowerCase().trim())) return true;
+  if (u.nama && dummyNames.includes(u.nama.toLowerCase().trim())) return true;
+  if (u.uid && dummyNis.some((n) => u.uid?.includes(n))) return true;
+
+  const deletedSet = getDeletedUsers();
+  if (u.uid && deletedSet.has(u.uid.toLowerCase().trim())) return true;
+  if (u.nis && deletedSet.has(String(u.nis).toLowerCase().trim())) return true;
+  return false;
+};
+
+/**
+ * Deduplikasi akun murid & guru secara ketat berbasis NIS, email, dan nama
+ * Menghilangkan semua akun ganda/duplikat dan menyatukannya menjadi 1 akun mutakhir.
+ */
+export const deduplicateUsers = (users: UserProfile[]): UserProfile[] => {
+  const map = new Map<string, UserProfile>();
+  const nisMap = new Map<string, string>(); // nis -> uid
+  const emailMap = new Map<string, string>(); // email -> uid
+  const nameClassMap = new Map<string, string>(); // name+class -> uid
+
+  for (const u of users) {
+    if (!u || isDummyAccount(u)) continue;
+
+    const cleanNis = u.nis ? String(u.nis).trim().toLowerCase() : '';
+    const cleanEmail = u.email ? u.email.trim().toLowerCase() : '';
+    const cleanNameClass =
+      (u.nama ? u.nama.trim().toLowerCase() : '') +
+      ':::' +
+      (u.kelas ? u.kelas.trim().toLowerCase() : '');
+
+    let existingUid: string | undefined;
+    if (cleanNis && nisMap.has(cleanNis)) {
+      existingUid = nisMap.get(cleanNis);
+    } else if (cleanEmail && emailMap.has(cleanEmail)) {
+      existingUid = emailMap.get(cleanEmail);
+    } else if (u.role === 'murid' && cleanNameClass && nameClassMap.has(cleanNameClass)) {
+      existingUid = nameClassMap.get(cleanNameClass);
+    } else if (map.has(u.uid)) {
+      existingUid = u.uid;
+    }
+
+    if (existingUid && map.has(existingUid)) {
+      const existing = map.get(existingUid)!;
+      const merged: UserProfile = {
+        ...existing,
+        ...u,
+        uid: existing.uid,
+        password:
+          (u.password && u.password !== '123456' ? u.password : existing.password) ||
+          u.password ||
+          'murid123',
+        status: existing.status === 'aktif' || u.status === 'aktif' ? 'aktif' : 'nonaktif',
+        updatedAt: u.updatedAt || existing.updatedAt || new Date().toISOString()
+      };
+      map.set(existingUid, merged);
+    } else {
+      map.set(u.uid, {
+        ...u,
+        password: u.password || (u.role === 'murid' ? 'murid123' : 'guru123')
+      });
+      if (cleanNis) nisMap.set(cleanNis, u.uid);
+      if (cleanEmail) emailMap.set(cleanEmail, u.uid);
+      if (cleanNameClass) nameClassMap.set(cleanNameClass, u.uid);
+    }
+  }
+
+  return Array.from(map.values());
+};
+
 let realtimeListenersInitialized = false;
 
 /**
@@ -353,115 +524,11 @@ if (typeof window !== 'undefined' && !localStorage.getItem(DUMMY_CLEARED_KEY)) {
   localStorage.setItem(DUMMY_CLEARED_KEY, 'true');
 }
 
-const getStored = <T>(key: string, defaultData: T[]): T[] => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      localStorage.setItem(key, JSON.stringify(defaultData));
-      return defaultData;
-    }
-    return JSON.parse(raw);
-  } catch (err) {
-    console.warn(`Error reading ${key}, falling back to default`, err);
-    return defaultData;
-  }
-};
-
-const setStored = <T>(key: string, data: T[]) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-    notifySubscribers();
-  } catch (err) {
-    console.error(`Error saving ${key}`, err);
-  }
-};
-
-const LS_DELETED_CLASSES = 'pjok_deleted_classes';
-const LS_DELETED_USERS = 'pjok_deleted_users';
-
-export const getDeletedClasses = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem(LS_DELETED_CLASSES);
-    const defaults = ['class-x-1', 'class-xii-1', 'x 1', 'xii 1'];
-    if (!raw) return new Set(defaults);
-    const arr = JSON.parse(raw);
-    return new Set(Array.isArray(arr) ? [...defaults, ...arr.map((x: string) => String(x).toLowerCase().trim())] : defaults);
-  } catch {
-    return new Set(['class-x-1', 'class-xii-1', 'x 1', 'xii 1']);
-  }
-};
-
-export const addDeletedClass = (idOrName: string) => {
-  try {
-    const current = getDeletedClasses();
-    current.add(idOrName.toLowerCase().trim());
-    localStorage.setItem(LS_DELETED_CLASSES, JSON.stringify(Array.from(current)));
-  } catch {}
-};
-
-export const getDeletedUsers = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem(LS_DELETED_USERS);
-    const defaults = ['1001', '1002', '1003', '1004', '1005'];
-    if (!raw) return new Set(defaults);
-    const arr = JSON.parse(raw);
-    return new Set(Array.isArray(arr) ? [...defaults, ...arr.map((x: string) => String(x).toLowerCase().trim())] : defaults);
-  } catch {
-    return new Set(['1001', '1002', '1003', '1004', '1005']);
-  }
-};
-
-export const addDeletedUser = (idOrNis: string) => {
-  try {
-    const current = getDeletedUsers();
-    current.add(idOrNis.toLowerCase().trim());
-    localStorage.setItem(LS_DELETED_USERS, JSON.stringify(Array.from(current)));
-  } catch {}
-};
-
-export const isClassDeleted = (c: Partial<ClassItem>): boolean => {
-  const dummyClassIds = ['class-x-1', 'class-xii-1'];
-  const dummyClassNames = ['x 1', 'xii 1'];
-  if (c.id && dummyClassIds.includes(c.id.toLowerCase().trim())) return true;
-  if (c.nama && dummyClassNames.includes(c.nama.toLowerCase().trim())) return true;
-  const deletedSet = getDeletedClasses();
-  if (c.id && deletedSet.has(c.id.toLowerCase().trim())) return true;
-  if (c.nama && deletedSet.has(c.nama.toLowerCase().trim())) return true;
-  return false;
-};
-
-export const isDummyAccount = (u: Partial<UserProfile>): boolean => {
-  const dummyNis = ['1001', '1002', '1003', '1004', '1005'];
-  const dummyEmails = [
-    'andi@pjok.sch.id',
-    'budi@pjok.sch.id',
-    'citra@pjok.sch.id',
-    'dewi@pjok.sch.id',
-    'eko@pjok.sch.id'
-  ];
-  const dummyNames = [
-    'andi pratama',
-    'budi santoso',
-    'citra lestari',
-    'dewi anggraini',
-    'eko prasetyo'
-  ];
-  if (u.nis && dummyNis.includes(String(u.nis).trim())) return true;
-  if (u.email && dummyEmails.includes(u.email.toLowerCase().trim())) return true;
-  if (u.nama && dummyNames.includes(u.nama.toLowerCase().trim())) return true;
-  if (u.uid && dummyNis.some((n) => u.uid?.includes(n))) return true;
-
-  const deletedSet = getDeletedUsers();
-  if (u.uid && deletedSet.has(u.uid.toLowerCase().trim())) return true;
-  if (u.nis && deletedSet.has(String(u.nis).toLowerCase().trim())) return true;
-  return false;
-};
-
 export const DatabaseService = {
   // --- SYNCHRONOUS CACHE READERS (0ms instant UI, no blank delay) ---
   getCachedUsers(): UserProfile[] {
     const raw = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
-    return raw.filter((u) => !isDummyAccount(u));
+    return deduplicateUsers(raw);
   },
 
   getCachedClasses(): ClassItem[] {
@@ -495,189 +562,37 @@ export const DatabaseService = {
 
   // --- USERS / PENGGUNA ---
   async purgeDummyAccounts(): Promise<void> {
-    if (isFirebaseConfigured() && db) {
-      try {
-        const [snapPengguna, snapUsers] = await Promise.all([
-          getDocs(collection(db, 'pengguna')).catch(() => null),
-          getDocs(collection(db, 'users')).catch(() => null)
-        ]);
-        const promises: Promise<any>[] = [];
-        if (snapPengguna) {
-          for (const d of snapPengguna.docs) {
-            const data = d.data() as UserProfile;
-            if (isDummyAccount(data) || isDummyAccount({ uid: d.id })) {
-              promises.push(deleteDoc(doc(db, 'pengguna', d.id)).catch(() => {}));
-            }
-          }
-        }
-        if (snapUsers) {
-          for (const d of snapUsers.docs) {
-            const data = d.data() as UserProfile;
-            if (isDummyAccount(data) || isDummyAccount({ uid: d.id })) {
-              promises.push(deleteDoc(doc(db, 'users', d.id)).catch(() => {}));
-            }
-          }
-        }
-        await Promise.all(promises);
-      } catch (e) {
-        console.warn('purgeDummyAccounts error:', e);
-      }
-    }
-    const all = getStored<UserProfile>(LS_USERS, []);
-    const filtered = all.filter((u) => !isDummyAccount(u));
-    setStored(LS_USERS, filtered);
+    const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+    const cleaned = deduplicateUsers(all);
+    setStored(LS_USERS, cleaned);
     notifySubscribers();
   },
 
   async getUsers(): Promise<UserProfile[]> {
-    const rawLocal = getStored<UserProfile>(LS_USERS, []);
-    const localUsers = rawLocal.filter((u) => !isDummyAccount(u));
+    const rawLocal = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+    const cleanLocal = deduplicateUsers(rawLocal);
 
-    if (isFirebaseConfigured() && db) {
-      try {
-        const [snapPengguna, snapUsers] = await Promise.all([
-          getDocs(collection(db, 'pengguna')).catch(() => null),
-          getDocs(collection(db, 'users')).catch(() => null)
-        ]);
-
-        const cloudMap = new Map<string, UserProfile>();
-
-        // 1. Baca data dari cloud (pengguna & users)
-        if (snapUsers && !snapUsers.empty) {
-          for (const d of snapUsers.docs) {
-            const u = d.data() as UserProfile;
-            if (u && (u.uid || d.id)) {
-              const fullU = { ...u, uid: u.uid || d.id };
-              if (isDummyAccount(fullU)) {
-                deleteDoc(doc(db, 'users', d.id)).catch(() => {});
-                deleteDoc(doc(db, 'pengguna', d.id)).catch(() => {});
-                continue;
-              }
-              cloudMap.set(fullU.uid, fullU);
-            }
-          }
-        }
-        if (snapPengguna && !snapPengguna.empty) {
-          for (const d of snapPengguna.docs) {
-            const u = d.data() as UserProfile;
-            if (u && (u.uid || d.id)) {
-              const fullU = { ...u, uid: u.uid || d.id };
-              if (isDummyAccount(fullU)) {
-                deleteDoc(doc(db, 'pengguna', d.id)).catch(() => {});
-                deleteDoc(doc(db, 'users', d.id)).catch(() => {});
-                continue;
-              }
-              const prev = cloudMap.get(fullU.uid);
-              if (!prev) {
-                cloudMap.set(fullU.uid, fullU);
-              } else {
-                const timeU = fullU.updatedAt || fullU.createdAt || '1970-01-01';
-                const timePrev = prev.updatedAt || prev.createdAt || '1970-01-01';
-                if (new Date(timeU).getTime() >= new Date(timePrev).getTime()) {
-                  cloudMap.set(fullU.uid, { ...prev, ...fullU });
-                } else {
-                  cloudMap.set(fullU.uid, { ...fullU, ...prev });
-                }
-              }
-            }
-          }
-        }
-
-        // Jika baik di cloud maupun lokal belum ada pengguna sama sekali, seed INITIAL_USERS satu kali saja
-        if (cloudMap.size === 0 && localUsers.length === 0) {
-          const seeded: UserProfile[] = [];
-          for (const u of INITIAL_USERS) {
-            if (isDummyAccount(u)) continue;
-            const withTime: UserProfile = {
-              ...u,
-              updatedAt: u.createdAt || new Date().toISOString()
-            };
-            seeded.push(withTime);
-            await Promise.all([
-              setDoc(doc(db, 'pengguna', u.uid), withTime, { merge: true }),
-              setDoc(doc(db, 'users', u.uid), withTime, { merge: true })
-            ]).catch(() => {});
-          }
-          setStored(LS_USERS, seeded);
-          return seeded;
-        }
-
-        // 2. Gabungkan dengan data lokal secara presisi berbasis timestamp (in-memory read, no Firestore write loop)
-        const finalMap = new Map<string, UserProfile>(cloudMap);
-
-        for (const lu of localUsers) {
-          if (isDummyAccount(lu)) continue;
-          const cu = finalMap.get(lu.uid);
-          if (!cu) {
-            finalMap.set(lu.uid, lu);
-          } else {
-            const localTime = lu.updatedAt || lu.createdAt || '1970-01-01';
-            const cloudTime = cu.updatedAt || cu.createdAt || '1970-01-01';
-            if (new Date(localTime).getTime() > new Date(cloudTime).getTime()) {
-              finalMap.set(lu.uid, lu);
-            }
-          }
-        }
-
-        // Pastikan INITIAL_USERS (seperti murid XI 1 s/d XI 9) juga terdaftar jika belum ada
-        for (const initU of INITIAL_USERS) {
-          if (isDummyAccount(initU)) continue;
-          const exists = Array.from(finalMap.values()).some(
-            (u) => u.uid === initU.uid || (u.nis && initU.nis && u.nis === initU.nis)
-          );
-          if (!exists) {
-            finalMap.set(initU.uid, initU);
-          }
-        }
-
-        const mergedUsers = Array.from(finalMap.values()).filter((u) => !isDummyAccount(u));
-        try {
-          localStorage.setItem(LS_USERS, JSON.stringify(mergedUsers));
-        } catch {}
-        return mergedUsers;
-      } catch (err) {
-        console.warn('Firestore getUsers failed, falling back to local:', err);
-      }
-    }
-
-    // Merge any INITIAL_USERS yang belum ada di localUsers
-    const localMap = new Map<string, UserProfile>();
-    localUsers.forEach((u) => {
-      if (!isDummyAccount(u)) localMap.set(u.uid, u);
-    });
-    let hasNewInitials = false;
+    // Pastikan INITIAL_USERS yang belum dihapus ada
+    const userMap = new Map<string, UserProfile>();
+    cleanLocal.forEach((u) => userMap.set(u.uid, u));
 
     for (const initU of INITIAL_USERS) {
       if (isDummyAccount(initU)) continue;
-      const existsByUid = localMap.has(initU.uid);
-      const existsByNis = initU.nis && localUsers.some((lu) => lu.nis === initU.nis);
+      const cleanNis = initU.nis ? String(initU.nis).trim().toLowerCase() : '';
+      const existsByNis = cleanNis && cleanLocal.some((lu) => lu.nis && String(lu.nis).trim().toLowerCase() === cleanNis);
+      const existsByUid = userMap.has(initU.uid);
       if (!existsByUid && !existsByNis) {
-        localUsers.push(initU);
-        localMap.set(initU.uid, initU);
-        hasNewInitials = true;
+        cleanLocal.push(initU);
+        userMap.set(initU.uid, initU);
       }
     }
 
-    const cleanedLocal = localUsers.filter((u) => !isDummyAccount(u));
-    setStored(LS_USERS, cleanedLocal);
-    return cleanedLocal;
+    const finalUsers = deduplicateUsers(cleanLocal);
+    setStored(LS_USERS, finalUsers);
+    return finalUsers;
   },
 
   async getUser(uid: string): Promise<UserProfile | null> {
-    if (isFirebaseConfigured() && db) {
-      try {
-        const docPengguna = await getDoc(doc(db, 'pengguna', uid));
-        if (docPengguna.exists()) {
-          return docPengguna.data() as UserProfile;
-        }
-        const docUser = await getDoc(doc(db, 'users', uid));
-        if (docUser.exists()) {
-          return docUser.data() as UserProfile;
-        }
-      } catch (err) {
-        console.warn('Firestore getUser failed, falling back:', err);
-      }
-    }
     const all = await this.getUsers();
     return all.find((u) => u.uid === uid) || null;
   },
@@ -687,69 +602,46 @@ export const DatabaseService = {
       ...user,
       updatedAt: new Date().toISOString()
     };
-    if (isFirebaseConfigured() && db) {
-      try {
-        await setDoc(doc(db, 'pengguna', user.uid), userWithTime, { merge: true });
-      } catch (err) {
-        console.warn('Firestore saveUser error:', err);
-      }
-    }
-    const all = getStored<UserProfile>(LS_USERS, []);
-    const idx = all.findIndex((u) => u.uid === user.uid);
+    const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
+    const cleanUserNis = user.nis ? String(user.nis).trim().toLowerCase() : '';
+    const idx = all.findIndex(
+      (u) =>
+        u.uid === user.uid ||
+        (cleanUserNis && u.nis && String(u.nis).trim().toLowerCase() === cleanUserNis)
+    );
     if (idx >= 0) {
-      all[idx] = userWithTime;
+      all[idx] = { ...all[idx], ...userWithTime };
     } else {
       all.push(userWithTime);
     }
-    setStored(LS_USERS, all);
+    const cleanAll = deduplicateUsers(all);
+    setStored(LS_USERS, cleanAll);
     notifySubscribers();
   },
 
   async deleteUser(uid: string): Promise<void> {
-    const all = getStored<UserProfile>(LS_USERS, []);
+    const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
     const target = all.find((u) => u.uid === uid);
     addDeletedUser(uid);
     if (target?.nis) addDeletedUser(target.nis);
 
-    if (isFirebaseConfigured() && db) {
-      try {
-        await Promise.all([
-          deleteDoc(doc(db, 'pengguna', uid)).catch(() => {}),
-          deleteDoc(doc(db, 'users', uid)).catch(() => {})
-        ]);
-      } catch (err) {
-        console.warn('Firestore deleteUser error:', err);
-      }
-    }
     const filtered = all.filter((u) => u.uid !== uid && !isDummyAccount(u));
-    setStored(LS_USERS, filtered);
+    setStored(LS_USERS, deduplicateUsers(filtered));
     notifySubscribers();
   },
 
   async deleteUsers(uids: string[]): Promise<void> {
     if (!uids || uids.length === 0) return;
     const uidSet = new Set(uids);
-    const all = getStored<UserProfile>(LS_USERS, []);
+    const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
     for (const uid of uids) {
       addDeletedUser(uid);
       const target = all.find((u) => u.uid === uid);
       if (target?.nis) addDeletedUser(target.nis);
     }
 
-    if (isFirebaseConfigured() && db) {
-      try {
-        const promises: Promise<any>[] = [];
-        for (const uid of uids) {
-          promises.push(deleteDoc(doc(db, 'pengguna', uid)).catch(() => {}));
-          promises.push(deleteDoc(doc(db, 'users', uid)).catch(() => {}));
-        }
-        await Promise.all(promises);
-      } catch (err) {
-        console.warn('Firestore deleteUsers error:', err);
-      }
-    }
     const filtered = all.filter((u) => !uidSet.has(u.uid) && !isDummyAccount(u));
-    setStored(LS_USERS, filtered);
+    setStored(LS_USERS, deduplicateUsers(filtered));
     notifySubscribers();
   },
 

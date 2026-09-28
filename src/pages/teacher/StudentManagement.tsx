@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DatabaseService, subscribeToDataChanges, isDummyAccount } from '../../services/db';
+import { DatabaseService, subscribeToDataChanges, isDummyAccount, isClassDeleted } from '../../services/db';
 import { UserProfile, ClassItem } from '../../types';
 import {
   Users,

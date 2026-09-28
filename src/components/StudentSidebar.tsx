@@ -121,7 +121,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 lg:hidden"
           onClick={onClose}
         />
       )}
@@ -129,8 +129,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
       {/* Sidebar container - Terkunci (Fixed) di sisi kiri, tidak bergeser naik turun */}
       <aside
         id="student-sidebar"
-        className={`fixed top-0 lg:top-[64px] sm:lg:top-[76px] bottom-0 left-0 z-40 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out shrink-0 select-none ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed top-0 bottom-0 left-0 z-50 lg:z-30 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out shrink-0 select-none ${
+          isOpen ? 'translate-x-0 shadow-2xl lg:shadow-none' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         <div className="flex flex-col h-full overflow-hidden">

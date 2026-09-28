@@ -36,43 +36,17 @@ export const firebaseConfig = {
 
 /**
  * Kontrol Status Firebase Cloud
- * Diatur ke 'true' untuk mengaktifkan sinkronisasi Cloud Firestore.
- * Pengguna juga dapat menonaktifkan/mengaktifkannya kembali secara instan.
+ * Diatur ke 'false' untuk menonaktifkan sinkronisasi Cloud Firestore
+ * dan beralih sepenuhnya ke penyimpanan lokal berkecepatan tinggi (0ms).
  */
-export const FIREBASE_ENABLED = true;
+export const FIREBASE_ENABLED = false;
 
 /**
  * Memeriksa apakah Firebase sudah dikonfigurasi dan diaktifkan.
+ * Dinonaktifkan sesuai permintaan pengguna agar aplikasi berjalan cepat dan tanpa kendala jaringan.
  */
 export const isFirebaseConfigured = (): boolean => {
-  try {
-    const override = localStorage.getItem('pjok_firebase_enabled');
-    if (override === 'false') return false;
-    if (override === 'true') return true;
-  } catch {}
-
-  if (!FIREBASE_ENABLED) {
-    return false;
-  }
-
-  try {
-    const savedConfig = localStorage.getItem('pjok_custom_firebase_config');
-    if (savedConfig) {
-      const parsed = JSON.parse(savedConfig);
-      if (parsed.apiKey && parsed.apiKey !== 'ISI_API_KEY' && parsed.projectId !== 'ISI_PROJECT_ID') {
-        return true;
-      }
-    }
-  } catch (e) {
-    console.warn('Gagal membaca custom Firebase config:', e);
-  }
-
-  return (
-    Boolean(firebaseConfig.apiKey) &&
-    firebaseConfig.apiKey !== 'ISI_API_KEY' &&
-    firebaseConfig.projectId !== 'penilaian-pjok' &&
-    firebaseConfig.apiKey.startsWith('AIza')
-  );
+  return false;
 };
 
 export const getActiveFirebaseConfig = () => {
