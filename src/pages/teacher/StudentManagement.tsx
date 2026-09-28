@@ -22,12 +22,28 @@ import {
 } from 'lucide-react';
 
 export const StudentManagement: React.FC = () => {
-  const [students, setStudents] = useState<UserProfile[]>(() =>
-    DatabaseService.getCachedUsers().filter((x) => x.role === 'murid' && !isDummyAccount(x))
-  );
-  const [classes, setClasses] = useState<ClassItem[]>(() =>
-    DatabaseService.getCachedClasses().filter((c) => !isClassDeleted(c))
-  );
+  const [students, setStudents] = useState<UserProfile[]>(() => {
+    try {
+      const cached = DatabaseService.getCachedUsers();
+      return (Array.isArray(cached) ? cached : []).filter(
+        (x) => x && x.role === 'murid' && !isDummyAccount(x)
+      );
+    } catch (err) {
+      console.warn('Gagal membaca cache awal siswa:', err);
+      return [];
+    }
+  });
+  const [classes, setClasses] = useState<ClassItem[]>(() => {
+    try {
+      const cached = DatabaseService.getCachedClasses();
+      return (Array.isArray(cached) ? cached : []).filter(
+        (c) => c && !isClassDeleted(c)
+      );
+    } catch (err) {
+      console.warn('Gagal membaca cache awal kelas:', err);
+      return [];
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('Semua');
   
@@ -52,13 +68,24 @@ export const StudentManagement: React.FC = () => {
   const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif');
 
   const loadData = async () => {
-    const [u, c] = await Promise.all([
-      DatabaseService.getUsers(),
-      DatabaseService.getClasses()
-    ]);
-    setStudents(u.filter((x) => x.role === 'murid' && !isDummyAccount(x)));
-    setClasses(c.filter((cl) => !isClassDeleted(cl)));
-    DatabaseService.purgeDummyAccounts().catch(() => {});
+    try {
+      const [u, c] = await Promise.all([
+        DatabaseService.getUsers(),
+        DatabaseService.getClasses()
+      ]);
+      setStudents(
+        (Array.isArray(u) ? u : []).filter(
+          (x) => x && x.role === 'murid' && !isDummyAccount(x)
+        )
+      );
+      setClasses(
+        (Array.isArray(c) ? c : []).filter(
+          (cl) => cl && !isClassDeleted(cl)
+        )
+      );
+    } catch (err) {
+      console.error('Error saat memuat data murid:', err);
+    }
   };
 
   useEffect(() => {
@@ -378,16 +405,27 @@ export const StudentManagement: React.FC = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Filter & search
-  const filteredStudents = students.filter((s) => {
-    const matchQuery =
-      s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.nis && s.nis.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (s.email && s.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (s.kelas && s.kelas.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchClass = selectedClass === 'Semua' || s.kelas === selectedClass;
-    return matchQuery && matchClass;
-  });
+  // Filter & search dengan pengecekan aman untuk mencegah TypeError
+  const filteredStudents = useMemo(() => {
+    if (!Array.isArray(students)) return [];
+    const query = (searchQuery || '').toLowerCase().trim();
+    return students.filter((s) => {
+      if (!s) return false;
+      const sName = (s.nama || '').toLowerCase();
+      const sNis = (s.nis ? String(s.nis) : '').toLowerCase();
+      const sEmail = (s.email || '').toLowerCase();
+      const sKelas = (s.kelas || '').toLowerCase();
+
+      const matchQuery =
+        !query ||
+        sName.includes(query) ||
+        sNis.includes(query) ||
+        sEmail.includes(query) ||
+        sKelas.includes(query);
+      const matchClass = selectedClass === 'Semua' || s.kelas === selectedClass;
+      return matchQuery && matchClass;
+    });
+  }, [students, searchQuery, selectedClass]);
 
   return (
     <div className="space-y-6">

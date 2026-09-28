@@ -14,8 +14,12 @@ import {
 } from 'lucide-react';
 
 export const ClassManagement: React.FC = () => {
-  const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [students, setStudents] = useState<UserProfile[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>(() =>
+    DatabaseService.getCachedClasses().filter((cl) => !isClassDeleted(cl))
+  );
+  const [students, setStudents] = useState<UserProfile[]>(() =>
+    DatabaseService.getCachedUsers().filter((x) => x.role === 'murid' && !isDummyAccount(x))
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
 
@@ -26,13 +30,12 @@ export const ClassManagement: React.FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
 
   const loadData = async () => {
-    await DatabaseService.purgeDummyClasses();
     const [c, u] = await Promise.all([
       DatabaseService.getClasses(),
       DatabaseService.getUsers()
     ]);
-    setClasses(c.filter((cl) => !isClassDeleted(cl)));
-    setStudents(u.filter((x) => x.role === 'murid' && !isDummyAccount(x)));
+    setClasses((c || []).filter((cl) => !isClassDeleted(cl)));
+    setStudents((u || []).filter((x) => x.role === 'murid' && !isDummyAccount(x)));
   };
 
   useEffect(() => {

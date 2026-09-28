@@ -24,7 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen }
 
   return (
     <>
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-800 sticky top-0 z-30 shadow-xs w-full transition-colors">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-800 sticky top-0 z-40 shadow-xs w-full transition-colors">
         <div className="w-full px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-2 sm:py-2.5 min-h-[64px] sm:min-h-[76px] gap-2">
             

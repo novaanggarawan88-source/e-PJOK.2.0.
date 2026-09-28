@@ -112,10 +112,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      {/* Sidebar container - Terkunci (Fixed) di sisi kiri, tidak bergeser naik turun */}
+      {/* Sidebar container - Terkunci (Fixed) di sisi kiri, di bawah navbar pada desktop dan drawer pada mobile */}
       <aside
         id="teacher-sidebar"
-        className={`fixed top-0 bottom-0 left-0 z-50 lg:z-30 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out shrink-0 select-none ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] lg:w-64 lg:top-[64px] sm:lg:top-[76px] lg:bottom-0 lg:z-30 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out shrink-0 select-none ${
           isOpen ? 'translate-x-0 shadow-2xl lg:shadow-none' : '-translate-x-full lg:translate-x-0'
         }`}
       >

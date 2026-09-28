@@ -69,14 +69,19 @@ export const subscribeToDataChanges = (callback: ListenerCallback): (() => void)
   };
 };
 
+let notifyTimeout: any = null;
 const notifySubscribers = () => {
-  listeners.forEach((cb) => {
-    try {
-      cb();
-    } catch (e) {
-      console.error('Listener callback error', e);
-    }
-  });
+  if (notifyTimeout) return;
+  notifyTimeout = setTimeout(() => {
+    notifyTimeout = null;
+    listeners.forEach((cb) => {
+      try {
+        cb();
+      } catch (e) {
+        console.error('Listener callback error', e);
+      }
+    });
+  }, 30);
 };
 
 export const getStored = <T>(key: string, defaultData: T[]): T[] => {
@@ -95,12 +100,14 @@ export const getStored = <T>(key: string, defaultData: T[]): T[] => {
   }
 };
 
-export const setStored = <T>(key: string, data: T[]) => {
+export const setStored = <T>(key: string, data: T[], notify: boolean = true) => {
   try {
     if (typeof window !== 'undefined') {
       localStorage.setItem(key, JSON.stringify(data));
     }
-    notifySubscribers();
+    if (notify) {
+      notifySubscribers();
+    }
   } catch (err) {
     console.error(`Error saving ${key}`, err);
   }
@@ -164,7 +171,8 @@ export const isClassDeleted = (c: Partial<ClassItem>): boolean => {
   return false;
 };
 
-export const isDummyAccount = (u: Partial<UserProfile>): boolean => {
+export const isDummyAccount = (u: Partial<UserProfile> | null | undefined): boolean => {
+  if (!u || typeof u !== 'object') return false;
   const dummyNis = ['1001', '1002', '1003', '1004', '1005'];
   const dummyEmails = [
     'andi@pjok.sch.id',
@@ -180,14 +188,19 @@ export const isDummyAccount = (u: Partial<UserProfile>): boolean => {
     'dewi anggraini',
     'eko prasetyo'
   ];
-  if (u.nis && dummyNis.includes(String(u.nis).trim())) return true;
-  if (u.email && dummyEmails.includes(u.email.toLowerCase().trim())) return true;
-  if (u.nama && dummyNames.includes(u.nama.toLowerCase().trim())) return true;
-  if (u.uid && dummyNis.some((n) => u.uid?.includes(n))) return true;
+  const cleanNis = u.nis ? String(u.nis).trim() : '';
+  const cleanEmail = u.email ? String(u.email).toLowerCase().trim() : '';
+  const cleanNama = u.nama ? String(u.nama).toLowerCase().trim() : '';
+  const cleanUid = u.uid ? String(u.uid).toLowerCase().trim() : '';
+
+  if (cleanNis && dummyNis.includes(cleanNis)) return true;
+  if (cleanEmail && dummyEmails.includes(cleanEmail)) return true;
+  if (cleanNama && dummyNames.includes(cleanNama)) return true;
+  if (cleanUid && dummyNis.some((n) => cleanUid.includes(n))) return true;
 
   const deletedSet = getDeletedUsers();
-  if (u.uid && deletedSet.has(u.uid.toLowerCase().trim())) return true;
-  if (u.nis && deletedSet.has(String(u.nis).toLowerCase().trim())) return true;
+  if (cleanUid && deletedSet.has(cleanUid)) return true;
+  if (cleanNis && deletedSet.has(cleanNis.toLowerCase())) return true;
   return false;
 };
 
@@ -196,20 +209,32 @@ export const isDummyAccount = (u: Partial<UserProfile>): boolean => {
  * Menghilangkan semua akun ganda/duplikat dan menyatukannya menjadi 1 akun mutakhir.
  */
 export const deduplicateUsers = (users: UserProfile[]): UserProfile[] => {
+  if (!Array.isArray(users)) return [];
   const map = new Map<string, UserProfile>();
   const nisMap = new Map<string, string>(); // nis -> uid
   const emailMap = new Map<string, string>(); // email -> uid
   const nameClassMap = new Map<string, string>(); // name+class -> uid
 
-  for (const u of users) {
-    if (!u || isDummyAccount(u)) continue;
+  for (const rawU of users) {
+    if (!rawU || typeof rawU !== 'object' || isDummyAccount(rawU)) continue;
 
-    const cleanNis = u.nis ? String(u.nis).trim().toLowerCase() : '';
-    const cleanEmail = u.email ? u.email.trim().toLowerCase() : '';
-    const cleanNameClass =
-      (u.nama ? u.nama.trim().toLowerCase() : '') +
-      ':::' +
-      (u.kelas ? u.kelas.trim().toLowerCase() : '');
+    const uid = rawU.uid ? String(rawU.uid).trim() : `murid-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const u: UserProfile = {
+      ...rawU,
+      uid,
+      nama: rawU.nama ? String(rawU.nama).trim() : 'Murid PJOK',
+      email: rawU.email ? String(rawU.email).trim() : `${uid}@pjok.sch.id`,
+      role: rawU.role === 'guru' ? 'guru' : 'murid',
+      status: rawU.status === 'nonaktif' ? 'nonaktif' : 'aktif',
+      password: rawU.password || (rawU.role === 'guru' ? 'guru123' : 'murid123'),
+      kelas: rawU.kelas ? String(rawU.kelas).trim() : 'XI 1',
+      nis: rawU.nis ? String(rawU.nis).trim() : '',
+      nomorAbsen: rawU.nomorAbsen ? String(rawU.nomorAbsen).trim() : ''
+    };
+
+    const cleanNis = u.nis ? u.nis.toLowerCase() : '';
+    const cleanEmail = u.email ? u.email.toLowerCase() : '';
+    const cleanNameClass = (u.nama ? u.nama.toLowerCase() : '') + ':::' + (u.kelas ? u.kelas.toLowerCase() : '');
 
     let existingUid: string | undefined;
     if (cleanNis && nisMap.has(cleanNis)) {
@@ -228,6 +253,8 @@ export const deduplicateUsers = (users: UserProfile[]): UserProfile[] => {
         ...existing,
         ...u,
         uid: existing.uid,
+        nama: u.nama || existing.nama || 'Murid PJOK',
+        email: u.email || existing.email || `${existing.uid}@pjok.sch.id`,
         password:
           (u.password && u.password !== '123456' ? u.password : existing.password) ||
           u.password ||
@@ -237,10 +264,7 @@ export const deduplicateUsers = (users: UserProfile[]): UserProfile[] => {
       };
       map.set(existingUid, merged);
     } else {
-      map.set(u.uid, {
-        ...u,
-        password: u.password || (u.role === 'murid' ? 'murid123' : 'guru123')
-      });
+      map.set(u.uid, u);
       if (cleanNis) nisMap.set(cleanNis, u.uid);
       if (cleanEmail) emailMap.set(cleanEmail, u.uid);
       if (cleanNameClass) nameClassMap.set(cleanNameClass, u.uid);
@@ -369,14 +393,18 @@ export const initRealtimeCloudSync = () => {
       (snap) => {
         const cloudUsers = snap.docs
           .map((d) => ({ ...(d.data() as UserProfile), uid: d.id }))
-          .filter((u) => !isDummyAccount(u));
-        const local = getStored<UserProfile>(LS_USERS, []).filter((u) => !isDummyAccount(u));
+          .filter((u) => u && !isDummyAccount(u));
+        const local = getStored<UserProfile>(LS_USERS, INITIAL_USERS).filter((u) => u && !isDummyAccount(u));
         const map = new Map<string, UserProfile>();
-        cloudUsers.forEach((u) => map.set(u.uid, u));
+        cloudUsers.forEach((u) => {
+          if (u && u.uid) map.set(u.uid, u);
+        });
         local.forEach((lu) => {
-          if (isDummyAccount(lu)) return;
+          if (!lu || !lu.uid || isDummyAccount(lu)) return;
           const cu = map.get(lu.uid);
-          if (cu) {
+          if (!cu) {
+            map.set(lu.uid, lu);
+          } else {
             const localT = lu.updatedAt || lu.createdAt || '1970-01-01';
             const cloudT = cu.updatedAt || cu.createdAt || '1970-01-01';
             if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
@@ -384,7 +412,7 @@ export const initRealtimeCloudSync = () => {
             }
           }
         });
-        const merged = Array.from(map.values()).filter((u) => !isDummyAccount(u));
+        const merged = deduplicateUsers(Array.from(map.values()));
         try {
           localStorage.setItem(LS_USERS, JSON.stringify(merged));
         } catch {}
@@ -564,31 +592,81 @@ export const DatabaseService = {
   async purgeDummyAccounts(): Promise<void> {
     const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
     const cleaned = deduplicateUsers(all);
-    setStored(LS_USERS, cleaned);
-    notifySubscribers();
+    setStored(LS_USERS, cleaned, false);
   },
 
   async getUsers(): Promise<UserProfile[]> {
     const rawLocal = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
-    const cleanLocal = deduplicateUsers(rawLocal);
+    let cleanLocal = deduplicateUsers(rawLocal);
 
-    // Pastikan INITIAL_USERS yang belum dihapus ada
+    if (isFirebaseConfigured() && db) {
+      try {
+        const snap = await getDocs(collection(db, 'pengguna'));
+        if (!snap.empty) {
+          const cloudUsers: UserProfile[] = [];
+          for (const d of snap.docs) {
+            const u = d.data() as UserProfile;
+            if (!u || isDummyAccount(u) || isDummyAccount({ uid: d.id })) {
+              continue;
+            }
+            cloudUsers.push({ ...u, uid: u.uid || d.id });
+          }
+
+          const map = new Map<string, UserProfile>();
+          cloudUsers.forEach((u) => map.set(u.uid, u));
+          cleanLocal.forEach((lu) => {
+            if (!lu || isDummyAccount(lu)) return;
+            const cu = map.get(lu.uid);
+            if (!cu) {
+              map.set(lu.uid, lu);
+            } else {
+              const localT = lu.updatedAt || lu.createdAt || '1970-01-01';
+              const cloudT = cu.updatedAt || cu.createdAt || '1970-01-01';
+              if (new Date(localT).getTime() > new Date(cloudT).getTime()) {
+                map.set(lu.uid, lu);
+              }
+            }
+          });
+
+          cleanLocal = deduplicateUsers(Array.from(map.values()));
+        } else {
+          // Cloud pengguna kosong, bantu inisialisasi awal ke Firestore
+          setTimeout(async () => {
+            try {
+              if (isFirebaseConfigured() && db) {
+                for (const u of cleanLocal.slice(0, 40)) {
+                  await setDoc(doc(db, 'pengguna', u.uid), u, { merge: true }).catch(() => {});
+                }
+              }
+            } catch {}
+          }, 100);
+        }
+      } catch (err) {
+        console.warn('Firestore getUsers fallback to local:', err);
+      }
+    }
+
+    // Pastikan INITIAL_USERS yang belum dihapus ada dengan O(1) set lookup
     const userMap = new Map<string, UserProfile>();
     cleanLocal.forEach((u) => userMap.set(u.uid, u));
+    const existingNisSet = new Set(
+      cleanLocal.map((u) => (u.nis ? String(u.nis).trim().toLowerCase() : '')).filter(Boolean)
+    );
 
     for (const initU of INITIAL_USERS) {
       if (isDummyAccount(initU)) continue;
       const cleanNis = initU.nis ? String(initU.nis).trim().toLowerCase() : '';
-      const existsByNis = cleanNis && cleanLocal.some((lu) => lu.nis && String(lu.nis).trim().toLowerCase() === cleanNis);
+      const existsByNis = cleanNis && existingNisSet.has(cleanNis);
       const existsByUid = userMap.has(initU.uid);
       if (!existsByUid && !existsByNis) {
         cleanLocal.push(initU);
         userMap.set(initU.uid, initU);
+        if (cleanNis) existingNisSet.add(cleanNis);
       }
     }
 
     const finalUsers = deduplicateUsers(cleanLocal);
-    setStored(LS_USERS, finalUsers);
+    setStored(LS_USERS, finalUsers, false);
     return finalUsers;
   },
 
@@ -600,6 +678,10 @@ export const DatabaseService = {
   async saveUser(user: UserProfile): Promise<void> {
     const userWithTime: UserProfile = {
       ...user,
+      nama: user.nama ? String(user.nama).trim() : 'Murid PJOK',
+      role: user.role === 'guru' ? 'guru' : 'murid',
+      status: user.status === 'nonaktif' ? 'nonaktif' : 'aktif',
+      kelas: user.kelas ? String(user.kelas).trim() : 'XI 1',
       updatedAt: new Date().toISOString()
     };
     const all = getStored<UserProfile>(LS_USERS, INITIAL_USERS);
@@ -617,6 +699,15 @@ export const DatabaseService = {
     const cleanAll = deduplicateUsers(all);
     setStored(LS_USERS, cleanAll);
     notifySubscribers();
+
+    // Sinkronkan ke cloud Firestore koleksi 'pengguna'
+    if (isFirebaseConfigured() && db) {
+      try {
+        await setDoc(doc(db, 'pengguna', userWithTime.uid), userWithTime, { merge: true });
+      } catch (err) {
+        console.warn('Firestore saveUser error (tersimpan secara lokal):', err);
+      }
+    }
   },
 
   async deleteUser(uid: string): Promise<void> {
@@ -628,6 +719,14 @@ export const DatabaseService = {
     const filtered = all.filter((u) => u.uid !== uid && !isDummyAccount(u));
     setStored(LS_USERS, deduplicateUsers(filtered));
     notifySubscribers();
+
+    if (isFirebaseConfigured() && db) {
+      try {
+        await deleteDoc(doc(db, 'pengguna', uid));
+      } catch (err) {
+        console.warn('Firestore deleteUser error:', err);
+      }
+    }
   },
 
   async deleteUsers(uids: string[]): Promise<void> {
@@ -643,6 +742,14 @@ export const DatabaseService = {
     const filtered = all.filter((u) => !uidSet.has(u.uid) && !isDummyAccount(u));
     setStored(LS_USERS, deduplicateUsers(filtered));
     notifySubscribers();
+
+    if (isFirebaseConfigured() && db) {
+      try {
+        await Promise.all(uids.map((id) => deleteDoc(doc(db, 'pengguna', id)).catch(() => {})));
+      } catch (err) {
+        console.warn('Firestore deleteUsers error:', err);
+      }
+    }
   },
 
   // --- CLASSES ---
@@ -666,8 +773,7 @@ export const DatabaseService = {
     }
     const all = getStored<ClassItem>(LS_CLASSES, INITIAL_CLASSES);
     const filtered = all.filter((c) => !isClassDeleted(c));
-    setStored(LS_CLASSES, filtered);
-    notifySubscribers();
+    setStored(LS_CLASSES, filtered, false);
   },
 
   async getClasses(): Promise<ClassItem[]> {
@@ -743,7 +849,7 @@ export const DatabaseService = {
     }
 
     const cleaned = Array.from(mapLocal.values()).filter((c) => !isClassDeleted(c));
-    setStored(LS_CLASSES, cleaned);
+    setStored(LS_CLASSES, cleaned, false);
     return cleaned;
   },
 

@@ -36,17 +36,21 @@ export const firebaseConfig = {
 
 /**
  * Kontrol Status Firebase Cloud
- * Diatur ke 'false' untuk menonaktifkan sinkronisasi Cloud Firestore
- * dan beralih sepenuhnya ke penyimpanan lokal berkecepatan tinggi (0ms).
+ * Diaktifkan untuk sinkronisasi Cloud Firestore antara laptop guru dan perangkat siswa.
  */
-export const FIREBASE_ENABLED = false;
+export const FIREBASE_ENABLED = true;
 
 /**
  * Memeriksa apakah Firebase sudah dikonfigurasi dan diaktifkan.
- * Dinonaktifkan sesuai permintaan pengguna agar aplikasi berjalan cepat dan tanpa kendala jaringan.
  */
 export const isFirebaseConfigured = (): boolean => {
-  return false;
+  const active = getActiveFirebaseConfig();
+  return Boolean(
+    active.apiKey &&
+    active.apiKey !== 'ISI_API_KEY' &&
+    active.projectId &&
+    dbInstance
+  );
 };
 
 export const getActiveFirebaseConfig = () => {
