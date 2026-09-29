@@ -11,6 +11,7 @@ import { LoginPage } from './pages/LoginPage';
 import { TeacherView } from './pages/TeacherView';
 import { StudentView } from './pages/StudentView';
 import { AppLogo } from './components/AppLogo';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { DatabaseService } from './services/db';
 
 const MainApp: React.FC = () => {
@@ -18,8 +19,18 @@ const MainApp: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
-    DatabaseService.purgeDummyAccounts().catch(() => {});
-    DatabaseService.purgeDummyClasses().catch(() => {});
+    // Jalankan reset otomatis jika pertama kali atau diminta reset penuh
+    const resetDone = localStorage.getItem('pjok_database_full_reset_done_v1');
+    if (!resetDone) {
+      DatabaseService.resetAllDatabase()
+        .then(() => {
+          localStorage.setItem('pjok_database_full_reset_done_v1', 'true');
+        })
+        .catch(() => {});
+    } else {
+      DatabaseService.purgeDummyAccounts().catch(() => {});
+      DatabaseService.purgeDummyClasses().catch(() => {});
+    }
   }, []);
 
   if (loading) {
@@ -67,11 +78,13 @@ const MainApp: React.FC = () => {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <MainApp />
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary fallbackTitle="Terjadi Kendala pada Aplikasi">
+      <ThemeProvider>
+        <AuthProvider>
+          <MainApp />
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

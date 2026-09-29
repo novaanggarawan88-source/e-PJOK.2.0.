@@ -160,14 +160,17 @@ export const addDeletedUser = (idOrNis: string) => {
   } catch {}
 };
 
-export const isClassDeleted = (c: Partial<ClassItem>): boolean => {
+export const isClassDeleted = (c: Partial<ClassItem> | null | undefined): boolean => {
+  if (!c || typeof c !== 'object') return false;
   const dummyClassIds = ['class-x-1', 'class-xii-1'];
   const dummyClassNames = ['x 1', 'xii 1'];
-  if (c.id && dummyClassIds.includes(c.id.toLowerCase().trim())) return true;
-  if (c.nama && dummyClassNames.includes(c.nama.toLowerCase().trim())) return true;
+  const cid = c.id ? String(c.id).toLowerCase().trim() : '';
+  const cnama = c.nama ? String(c.nama).toLowerCase().trim() : '';
+  if (cid && dummyClassIds.includes(cid)) return true;
+  if (cnama && dummyClassNames.includes(cnama)) return true;
   const deletedSet = getDeletedClasses();
-  if (c.id && deletedSet.has(c.id.toLowerCase().trim())) return true;
-  if (c.nama && deletedSet.has(c.nama.toLowerCase().trim())) return true;
+  if (cid && deletedSet.has(cid)) return true;
+  if (cnama && deletedSet.has(cnama)) return true;
   return false;
 };
 
@@ -1819,8 +1822,8 @@ export const DatabaseService = {
     notifySubscribers();
   },
 
-  async resetToSeedData(): Promise<void> {
-    this.resetToDefaults();
+  async resetToSeedData(): Promise<{ success: boolean; message: string }> {
+    return await this.resetAllDatabase();
   },
 
   /**
@@ -2058,8 +2061,13 @@ export const DatabaseService = {
     }
   },
 
-  // Reset database back to default seed data
-  resetToDefaults() {
+  /**
+   * Reset total seluruh basis data aplikasi (Lokal & Cloud Firebase) ke konfigurasi bawaan bersih SMA Negeri 1 Tejakula
+   */
+  async resetAllDatabase(): Promise<{ success: boolean; message: string }> {
+    // 1. Bersihkan semua kunci local storage
+    localStorage.removeItem(LS_DELETED_CLASSES);
+    localStorage.removeItem(LS_DELETED_USERS);
     localStorage.removeItem(LS_USERS);
     localStorage.removeItem(LS_CLASSES);
     localStorage.removeItem(LS_INDICATORS);
@@ -2073,6 +2081,8 @@ export const DatabaseService = {
     localStorage.removeItem(LS_LEARNING_TASKS);
     localStorage.removeItem(LS_LEARNING_SUBMISSIONS);
     localStorage.removeItem(LS_NOTIFICATIONS);
+
+    // 2. Tanam data bawaan bersih
     localStorage.setItem(LS_USERS, JSON.stringify(INITIAL_USERS));
     localStorage.setItem(LS_CLASSES, JSON.stringify(INITIAL_CLASSES));
     localStorage.setItem(LS_INDICATORS, JSON.stringify(INITIAL_INDICATORS));
@@ -2086,7 +2096,70 @@ export const DatabaseService = {
     localStorage.setItem(LS_LEARNING_TASKS, JSON.stringify(INITIAL_LEARNING_TASKS));
     localStorage.setItem(LS_LEARNING_SUBMISSIONS, JSON.stringify([]));
     localStorage.setItem(LS_NOTIFICATIONS, JSON.stringify([]));
+
+    // 3. Sinkronkan dan reset Firebase Firestore jika terhubung
+    let cloudSynced = false;
+    if (isFirebaseConfigured() && db) {
+      try {
+        const firestore = db;
+
+        // Simpan kelas bawaan XI 1 s/d XI 9 ke Firestore
+        for (const cl of INITIAL_CLASSES) {
+          await setDoc(doc(firestore, 'classes', cl.id), cl, { merge: true }).catch(() => {});
+        }
+        deleteDoc(doc(firestore, 'classes', 'class-x-1')).catch(() => {});
+        deleteDoc(doc(firestore, 'classes', 'class-xii-1')).catch(() => {});
+
+        // Simpan pengguna bawaan (Guru dan seluruh murid XI 1 s/d XI 9)
+        for (const u of INITIAL_USERS) {
+          const uData = {
+            ...u,
+            updatedAt: new Date().toISOString()
+          };
+          await Promise.all([
+            setDoc(doc(firestore, 'pengguna', u.uid), uData, { merge: true }).catch(() => {}),
+            setDoc(doc(firestore, 'users', u.uid), uData, { merge: true }).catch(() => {})
+          ]);
+        }
+
+        // Simpan indikator, tugas, asesmen, pengaturan, kuis, materi
+        for (const ind of INITIAL_INDICATORS) {
+          await setDoc(doc(firestore, 'indicators', ind.id), ind, { merge: true }).catch(() => {});
+        }
+        for (const t of INITIAL_TASKS) {
+          await setDoc(doc(firestore, 'tasks', t.id), t, { merge: true }).catch(() => {});
+        }
+        for (const a of INITIAL_ASSESSMENTS) {
+          await setDoc(doc(firestore, 'assessments', a.id), a, { merge: true }).catch(() => {});
+        }
+        await setDoc(doc(firestore, 'settings', 'app_config'), INITIAL_APP_CONFIG, { merge: true }).catch(() => {});
+        for (const q of INITIAL_QUIZZES) {
+          await setDoc(doc(firestore, 'quizzes', q.id), q, { merge: true }).catch(() => {});
+        }
+        for (const m of INITIAL_MATERIALS) {
+          await setDoc(doc(firestore, 'materials', m.id), m, { merge: true }).catch(() => {});
+        }
+        for (const lt of INITIAL_LEARNING_TASKS) {
+          await setDoc(doc(firestore, 'learning_tasks', lt.id), lt, { merge: true }).catch(() => {});
+        }
+        cloudSynced = true;
+      } catch (err) {
+        console.warn('Reset Firestore warning:', err);
+      }
+    }
+
     notifySubscribers();
+    return {
+      success: true,
+      message: cloudSynced
+        ? 'Seluruh database lokal & Cloud Firebase berhasil di-reset ulang ke data bersih (Kelas XI 1 - XI 9 dan murid SMA N 1 Tejakula).'
+        : 'Seluruh database lokal berhasil di-reset ulang ke data bersih (Kelas XI 1 - XI 9 dan murid SMA N 1 Tejakula).'
+    };
+  },
+
+  // Reset database back to default seed data
+  resetToDefaults() {
+    this.resetAllDatabase().catch((e) => console.warn('resetAllDatabase notice:', e));
   },
 
   // --- NOTIFICATIONS SYSTEM ---

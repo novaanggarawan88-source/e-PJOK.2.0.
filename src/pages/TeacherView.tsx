@@ -13,6 +13,7 @@ import { QuizManagement } from './teacher/QuizManagement';
 import { MaterialManagement } from './teacher/MaterialManagement';
 import { LearningTaskManagement } from './teacher/LearningTaskManagement';
 import { AssessmentRecord } from '../types';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 interface TeacherViewProps {
   isSidebarOpen: boolean;
@@ -49,32 +50,34 @@ export const TeacherView: React.FC<TeacherViewProps> = ({
 
       {/* Main Content Area */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full min-w-0">
-        {currentMenu === 'dashboard' && (
-          <TeacherDashboard
-            onNavigate={setCurrentMenu}
-            onOpenAssessmentDetail={handleOpenDetail}
-          />
-        )}
-        {currentMenu === 'students' && <StudentManagement />}
-        {currentMenu === 'classes' && <ClassManagement />}
-        {currentMenu === 'indicators' && (
-          <IndicatorManagement onBack={() => setCurrentMenu('tasks')} />
-        )}
-        {currentMenu === 'tasks' && (
-          <TaskManagement onNavigateIndicators={() => setCurrentMenu('indicators')} />
-        )}
-        {currentMenu === 'materials' && <MaterialManagement />}
-        {currentMenu === 'learning-tasks' && <LearningTaskManagement />}
-        {currentMenu === 'quizzes' && <QuizManagement />}
-        {currentMenu === 'results' && (
-          <AssessmentResults
-            initialSelectedRecord={selectedRecordForDetail}
-            onClearInitialSelected={() => setSelectedRecordForDetail(null)}
-          />
-        )}
-        {currentMenu === 'recap' && <RecapScores />}
-        {currentMenu === 'analytics' && <Analytics />}
-        {currentMenu === 'settings' && <SettingsPage />}
+        <ErrorBoundary fallbackTitle={`Terjadi Kendala Memuat Menu ${currentMenu}`}>
+          {currentMenu === 'dashboard' && (
+            <TeacherDashboard
+              onNavigate={setCurrentMenu}
+              onOpenAssessmentDetail={handleOpenDetail}
+            />
+          )}
+          {currentMenu === 'students' && <StudentManagement />}
+          {currentMenu === 'classes' && <ClassManagement />}
+          {currentMenu === 'indicators' && (
+            <IndicatorManagement onBack={() => setCurrentMenu('tasks')} />
+          )}
+          {currentMenu === 'tasks' && (
+            <TaskManagement onNavigateIndicators={() => setCurrentMenu('indicators')} />
+          )}
+          {currentMenu === 'materials' && <MaterialManagement />}
+          {currentMenu === 'learning-tasks' && <LearningTaskManagement />}
+          {currentMenu === 'quizzes' && <QuizManagement />}
+          {currentMenu === 'results' && (
+            <AssessmentResults
+              initialSelectedRecord={selectedRecordForDetail}
+              onClearInitialSelected={() => setSelectedRecordForDetail(null)}
+            />
+          )}
+          {currentMenu === 'recap' && <RecapScores />}
+          {currentMenu === 'analytics' && <Analytics />}
+          {currentMenu === 'settings' && <SettingsPage />}
+        </ErrorBoundary>
       </main>
     </div>
   );
